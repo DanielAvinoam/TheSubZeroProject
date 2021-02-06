@@ -1,1 +1,3 @@
-SubZeroRootkit
+SubZero Rootkit
+
+Still in development...
