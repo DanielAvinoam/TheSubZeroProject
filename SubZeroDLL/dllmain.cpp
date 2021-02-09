@@ -10,6 +10,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     {
     case DLL_PROCESS_ATTACH:
         MessageBoxA(nullptr, "DllMain Invoked", "SubZero", 0);
+        //SetThreadExecutionState(ES_AWAYMODE_REQUIRED);
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:

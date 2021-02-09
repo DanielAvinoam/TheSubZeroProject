@@ -167,6 +167,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="SubZero.h" />
     <ClInclude Include="SubZeroCommon.h" />
+    <ClInclude Include="UndocumentedImports.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
