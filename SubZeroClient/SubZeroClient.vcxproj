@@ -151,6 +151,11 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="ServiceManager.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SubZeroDriver\SubZero.vcxproj">
+      <Project>{1fc63597-5de0-4a54-989d-2bc2142fdf35}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

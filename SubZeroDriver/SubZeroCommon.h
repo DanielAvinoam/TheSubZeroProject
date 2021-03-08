@@ -1,2 +1,4 @@
 #pragma once
-#include "pch.h"
+
+#define REG_MACHINE L"\\REGISTRY\\MACHINE\\"
+#define REG_SZ_KEY_PATH L"SYSTEM\\ControlSet001\\Services\\subzero"

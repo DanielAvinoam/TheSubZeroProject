@@ -19,5 +19,6 @@ struct Globals {
 	ULONG ExplorerLauncherThreadID = 0;
 	ULONG ChromeFirstThreadID = 0;
 	EX_RUNDOWN_REF RundownProtection;
-	PVOID RegHandle = nullptr;
+	PVOID ObjectRegistrationHandle = nullptr;
+	LARGE_INTEGER RegistryRegistrationCookie = { 0 };
 };

