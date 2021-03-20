@@ -144,11 +144,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="ReflectiveLibraryLoader.cpp" />
     <ClCompile Include="ServiceManager.cpp" />
     <ClCompile Include="SubZeroClient.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ReflectiveLibraryLoader.h" />
     <ClInclude Include="ServiceManager.h" />
   </ItemGroup>
   <ItemGroup>

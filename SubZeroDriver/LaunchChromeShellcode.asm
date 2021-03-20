@@ -120,7 +120,8 @@ return_from_func:
     ret
 
 cmdline:
-    db "C:\\Windows\\system32\\notepad.exe", 0
+    ;db "C:\\Windows\\system32\\notepad.exe", 0
+    db "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", 0
     
 end:
     pop rsp
