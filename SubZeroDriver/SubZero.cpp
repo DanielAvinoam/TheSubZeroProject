@@ -3,14 +3,13 @@
 
 Globals g_Globals;
 DRIVER_UNLOAD SubZeroUnload;
-DRIVER_DISPATCH SubZeroCreateClose, SubZeroRead;
+DRIVER_DISPATCH SubZeroCreateClose;
 NTSTATUS OnRegistryNotify(PVOID CallbackContext, PVOID Argument1, PVOID Argument2);
 OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info);
 void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
 void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize);
 bool FindProcessByName(CHAR* Name, PEPROCESS* Process);
-bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR AllocationStartAddress, ULONG Protection);
 bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction);
 
 extern "C" NTSTATUS
@@ -73,12 +72,13 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 		}
 
 		// Register for Thread notifications
-		//status = ::PsSetCreateThreadNotifyRoutine(OnThreadNotify);
-		//if (!NT_SUCCESS(status)) {
-		//	KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=status=%08X)\n", status));
-		//	break;
-		//}
+		status = ::PsSetCreateThreadNotifyRoutine(OnThreadNotify);
+		if (!NT_SUCCESS(status)) {
+			KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=status=%08X)\n", status));
+			break;
+		}
 	} while (false);
+	
 	if (!NT_SUCCESS(status)) {
 		if (symLinkCreated)
 			::IoDeleteSymbolicLink(&symLink);
@@ -110,7 +110,6 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 
 	DriverObject->DriverUnload = SubZeroUnload;
 	DriverObject->MajorFunction[IRP_MJ_CREATE] = DriverObject->MajorFunction[IRP_MJ_CLOSE] = SubZeroCreateClose;
-	DriverObject->MajorFunction[IRP_MJ_READ] = SubZeroRead;
 	return status;
 }
 
@@ -135,13 +134,6 @@ void SubZeroUnload(PDRIVER_OBJECT DriverObject) {
 }
 
 NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) {
-	Irp->IoStatus.Status = STATUS_SUCCESS;
-	Irp->IoStatus.Information = 0;
-	IoCompleteRequest(Irp, 0);
-	return STATUS_SUCCESS;
-}
-
-NTSTATUS SubZeroRead(PDEVICE_OBJECT, PIRP Irp) {
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	Irp->IoStatus.Information = 0;
 	IoCompleteRequest(Irp, 0);
@@ -301,49 +293,6 @@ bool FindProcessByName(CHAR* Name, PEPROCESS* Process)
 	return false;
 
 
-}
-
-//bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR AllocationStartAddress, ULONG Protection) {
-bool ChangeVadEntryProtection(PEPROCESS Process, ULONG_PTR, ULONG) {
-
-	//PEPROCESS* a = &Process;
-	PRTL_AVL_TABLE Table = (PRTL_AVL_TABLE)((uintptr_t)Process + 0x658);
-	
-	PMMVAD_SHORT Vad;
-	//ULONG VadCount;
-	//PMMADDRESS_NODE NewNode;
-	PVOID RestartKey = NULL;
-
-		//if (Vad->StartingVpn == AllocationStartAddress) {
-
-		//	ULONG_PTR flagsCopy = Vad->u.LongFlags;
-		//	ULONG shiftedProtection = flagsCopy >> 3;
-
-		//	InterlockedExchange((volatile LONG*)Vad->u.VadFlags.Protection, PAGE_EXECUTE_WRITECOPY);
-		//}
-		
-	KdPrint((DRIVER_PREFIX "[+] 1"));
-
-	for (Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableAvl(Table, TRUE);
-		Vad != NULL;
-		Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableAvl(Table, FALSE)) {
-
-		KdPrint((DRIVER_PREFIX "[+] Vad Starting Vpn -> (0x%p)\n", Vad->StartingVpn));
-
-	}
-
-	KdPrint((DRIVER_PREFIX "[+] 2"));
-
-	for (Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableWithoutSplayingAvl(Table, &RestartKey);
-		Vad != NULL;
-		Vad = (PMMVAD_SHORT)RtlEnumerateGenericTableWithoutSplayingAvl(Table, &RestartKey)) {
-
-		KdPrint((DRIVER_PREFIX "[+] Vad Starting Vpn -> (0x%p)\n", Vad->StartingVpn));
-	}
-
-	
-
-	return true;
 }
 
 bool QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) {
