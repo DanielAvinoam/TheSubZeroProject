@@ -1,0 +1,153 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\DSEFix Original">
+      <UniqueIdentifier>{b9a7e641-2a3c-4371-bbf1-28d98494f4e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\DSEFix Original">
+      <UniqueIdentifier>{5d28b776-1ca5-4055-b050-c027bd50a8fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cui">
+      <UniqueIdentifier>{1feef348-bd13-411c-8c73-e75a85c56f82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\hde">
+      <UniqueIdentifier>{8d132c86-4a60-4080-a6c6-42b6b40a0233}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\minirtl">
+      <UniqueIdentifier>{a2e4faea-9817-44bd-9dc0-5d0873755be1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ntdll">
+      <UniqueIdentifier>{d6c0257c-13f7-4fc3-99da-6ae7c9a7c9b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cui">
+      <UniqueIdentifier>{8a652a9f-3f8a-4af1-be39-da1b96067c33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\hde">
+      <UniqueIdentifier>{ce949e4d-f2cf-40b7-81cc-04eee8644768}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\minirtl">
+      <UniqueIdentifier>{fb0c52c5-7bda-4379-ba1a-033b89e2f3cf}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DSEFix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sup.c">
+      <Filter>Source Files\DSEFix Original</Filter>
+    </ClCompile>
+    <ClCompile Include="instdrv.c">
+      <Filter>Source Files\DSEFix Original</Filter>
+    </ClCompile>
+    <ClCompile Include="cui\cui.c">
+      <Filter>Source Files\cui</Filter>
+    </ClCompile>
+    <ClCompile Include="hde\hde64.c">
+      <Filter>Source Files\hde</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcat.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmp.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmpi.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcpy.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strend.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strlen.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncmp.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncmpi.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncpy.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\cmdline.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtoi.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtoi64.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtou64.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\u64tohex.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultohex.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultostr.c">
+      <Filter>Source Files\minirtl</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DSEFix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="global.h">
+      <Filter>Header Files\DSEFix Original</Filter>
+    </ClInclude>
+    <ClInclude Include="instdrv.h">
+      <Filter>Header Files\DSEFix Original</Filter>
+    </ClInclude>
+    <ClInclude Include="sup.h">
+      <Filter>Header Files\DSEFix Original</Filter>
+    </ClInclude>
+    <ClInclude Include="vbox.h">
+      <Filter>Header Files\DSEFix Original</Filter>
+    </ClInclude>
+    <ClInclude Include="vboxdrv.h">
+      <Filter>Header Files\DSEFix Original</Filter>
+    </ClInclude>
+    <ClInclude Include="cui\cui.h">
+      <Filter>Header Files\cui</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\hde64.h">
+      <Filter>Header Files\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\pstdint.h">
+      <Filter>Header Files\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="hde\table64.h">
+      <Filter>Header Files\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\cmdline.h">
+      <Filter>Header Files\minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\minirtl.h">
+      <Filter>Header Files\minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\rtltypes.h">
+      <Filter>Header Files\minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="ntdll\ntos.h">
+      <Filter>Header Files\ntdll</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
