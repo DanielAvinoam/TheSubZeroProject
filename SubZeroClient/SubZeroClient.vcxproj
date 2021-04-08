@@ -154,19 +154,30 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="RegistryManager.cpp" />
-    <ClCompile Include="ServiceManager.cpp" />
     <ClCompile Include="SubZeroClient.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="SubZeroLoaderCommon.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="RegistryManager.h" />
-    <ClInclude Include="ServiceManager.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DSEFix\DSEFix.vcxproj">
+      <Project>{0be31c3e-bec2-466a-96d4-db232e3f653d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\SubZeroDriver\SubZero.vcxproj">
       <Project>{1fc63597-5de0-4a54-989d-2bc2142fdf35}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\SubZeroUtils\SubZeroUtils.vcxproj">
+      <Project>{b77e044a-5d33-466a-bd27-220a62dbff82}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\x64\Release\SubZeroDLL.dll" />
+    <None Include="..\x64\Release\SubZeroDriver.sys" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="SubZeroClient.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,11 +1,11 @@
 #include "pch.h"
 #include "ReflectiveLibraryLoader.h"
 
-static inline LPVOID AlignAddressDown(LPVOID address, uintptr_t alignment) {
+inline LPVOID AlignAddressDown(LPVOID address, uintptr_t alignment) {
     return (LPVOID)AlignValueDown((uintptr_t)address, alignment);
 }
 
-VOID ReflectiveLibraryLoader::CopySections(const UCHAR* Data, size_t DataSize, PIMAGE_NT_HEADERS ntHeaders, PMEMORY_MODULE Module)
+VOID ReflectiveLibraryLoader::CopySections(const UCHAR* Data, SIZE_T DataSize, PIMAGE_NT_HEADERS ntHeaders, PMEMORY_MODULE Module)
 {
     /* Commit a page-aligned DataSize for each Section */
 
@@ -26,7 +26,7 @@ VOID ReflectiveLibraryLoader::CopySections(const UCHAR* Data, size_t DataSize, P
                     section_size,
                     MEM_COMMIT,
                     PAGE_READWRITE);
-                if (dest == NULL)
+                if (dest == nullptr)
                     throw;
 
                 // Always use position from file to support alignments smaller
@@ -53,7 +53,7 @@ VOID ReflectiveLibraryLoader::CopySections(const UCHAR* Data, size_t DataSize, P
             section->SizeOfRawData,
             MEM_COMMIT,
             PAGE_READWRITE);
-        if (dest == NULL)
+        if (dest == nullptr)
             throw;
 
         // Always use position from file to support alignments smaller
@@ -172,7 +172,7 @@ VOID ReflectiveLibraryLoader::FinalizeSections(PMEMORY_MODULE Module)
     }
     sectionData.last = TRUE;
 
-    // Finalize lasr Section
+    // Finalize last Section
     FinalizeSection(Module, &sectionData);
 }
 
@@ -265,7 +265,7 @@ VOID ReflectiveLibraryLoader::PerformBaseRelocation(PMEMORY_MODULE Module, ptrdi
 
 VOID ReflectiveLibraryLoader::BuildImportTable(PMEMORY_MODULE Module)
 {
-    /* Traverse on the library's IAT and load each library. Update the function addresses with the correct pointers*/
+    /* Traverse the library's IAT and load each library. Update the function addresses with the correct pointers*/
 
     UCHAR* codeBase = Module->codeBase;
     PIMAGE_IMPORT_DESCRIPTOR importDescriptor;
@@ -287,14 +287,14 @@ VOID ReflectiveLibraryLoader::BuildImportTable(PMEMORY_MODULE Module)
 
         // Load decriptor's library
         HMODULE handle = ::LoadLibraryA((LPCSTR)(codeBase + importDescriptor->Name));
-        if (handle == NULL) {
+        if (handle == nullptr) {
             ::SetLastError(ERROR_MOD_NOT_FOUND);
             throw;
         }
 
         // Add new module module to the imported modules list (needed in case of freeing)
         tmp = (HMODULE*)::HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Module->modules, (Module->numModules + 1) * (sizeof(HMODULE)));
-        if (tmp == NULL)
+        if (tmp == nullptr)
             throw;
 
         Module->modules = tmp;
@@ -322,7 +322,7 @@ VOID ReflectiveLibraryLoader::BuildImportTable(PMEMORY_MODULE Module)
                 *funcRef = ::GetProcAddress(handle, (LPCSTR)&thunkData->Name);
             }
 
-            if (*funcRef == 0)
+            if (*funcRef == nullptr)
                 throw;
         }
     }
@@ -332,7 +332,7 @@ VOID ReflectiveLibraryLoader::MemoryFreeLibrary(PMEMORY_MODULE Module)
 {
     /* Free the library and all of its imported libraries*/
 
-    if (Module == NULL)
+    if (Module == nullptr)
         return;
 
     if (Module->initialized) {
@@ -345,11 +345,11 @@ VOID ReflectiveLibraryLoader::MemoryFreeLibrary(PMEMORY_MODULE Module)
     // Currently not in use
     ::HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, Module->nameExportsTable);
 
-    if (Module->modules != NULL) {
+    if (Module->modules != nullptr) {
 
         // Free previously opened libraries        
         for (DWORD i = 0; i < Module->numModules; i++) {
-            if (Module->modules[i] != NULL)
+            if (Module->modules[i] != nullptr)
                 ::FreeLibrary(Module->modules[i]);
         }
 
@@ -357,74 +357,73 @@ VOID ReflectiveLibraryLoader::MemoryFreeLibrary(PMEMORY_MODULE Module)
         ::HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, Module->modules);
     }
 
-    if (Module->codeBase != NULL)
+    if (Module->codeBase != nullptr)
         // Release memory of library
         ::VirtualFree(Module->codeBase, 0, MEM_RELEASE);
 
     ::HeapFree(GetProcessHeap(), 0, Module);
 }
 
-PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size_t DataSize)
+PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, SIZE_T DataSize)
 {
     /* Loads a library reflectively */
 
-    PMEMORY_MODULE result = NULL;
+    PMEMORY_MODULE result = nullptr;
     PIMAGE_DOS_HEADER dosHeader;
     PIMAGE_NT_HEADERS ntHeaders;
     UCHAR* code, * headers;
     ptrdiff_t locationDelta;
     SYSTEM_INFO sysInfo;
     PIMAGE_SECTION_HEADER section;
-    DWORD i;
-    size_t optionalSectionSize;
-    size_t lastSectionEnd = 0;
-    size_t alignedImageSize;
+    SIZE_T optionalSectionSize;
+    SIZE_T alignedImageSize;
+    SIZE_T lastSectionEnd = 0;
 
     // Input validity checks
     if (DataSize < sizeof(IMAGE_DOS_HEADER)) {
         SetLastError(ERROR_INVALID_DATA);
-        return NULL;
+        return nullptr;
     }
 
     dosHeader = (PIMAGE_DOS_HEADER)Data;
     if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
         ::SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+        return nullptr;
     }
 
     if (DataSize < dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS)) {
         SetLastError(ERROR_INVALID_DATA);
-        return NULL;
+        return nullptr;
     }
 
     ntHeaders = (PIMAGE_NT_HEADERS) & ((const UCHAR*)(Data))[dosHeader->e_lfanew];
     if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
         ::SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+        return nullptr;
     }
 
     if (ntHeaders->FileHeader.Machine != HOST_MACHINE) {
         ::SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+        return nullptr;
     }
 
     if (ntHeaders->OptionalHeader.SectionAlignment & 1) {
         // Only support Section alignments that are a multiple of 2
         ::SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+        return nullptr;
     }
 
     if (DataSize < ntHeaders->OptionalHeader.SizeOfHeaders) {
         SetLastError(ERROR_INVALID_DATA);
-        return NULL;
+        return nullptr;
     }
 
 
     // Calculate last Section's ending address
     section = IMAGE_FIRST_SECTION(ntHeaders);
     optionalSectionSize = ntHeaders->OptionalHeader.SectionAlignment;
-    for (i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
-        size_t endOfSection;
+    for (DWORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
+        SIZE_T endOfSection;
         if (section->SizeOfRawData == 0) {
             // Section without Data in the DLL
             endOfSection = section->VirtualAddress + optionalSectionSize;
@@ -443,7 +442,7 @@ PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size
     alignedImageSize = AlignValueUp(ntHeaders->OptionalHeader.SizeOfImage, sysInfo.dwPageSize);
     if (alignedImageSize != AlignValueUp(lastSectionEnd, sysInfo.dwPageSize)) {
         ::SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+        return nullptr;
     }
 
     // Commit memory for library's image at its preffered base address
@@ -452,33 +451,30 @@ PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size
         MEM_RESERVE | MEM_COMMIT,
         PAGE_READWRITE);
 
-    if (code == NULL) {
+    if (code == nullptr) {
         // Address already commited, try to allocate memory at arbitrary position
         code = (UCHAR*)::VirtualAlloc(NULL,
             alignedImageSize,
             MEM_RESERVE | MEM_COMMIT,
             PAGE_READWRITE);
-        if (code == NULL) {
+        if (code == nullptr) {
             ::SetLastError(ERROR_OUTOFMEMORY);
-            return NULL;
+            return nullptr;
         }
     }
 
     // Build MEMORY_MODULE strucute
     result = (PMEMORY_MODULE)::HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORY_MODULE));
-    if (result == NULL) {
+    if (result == nullptr) {
         ::VirtualFree(code, 0, MEM_RELEASE);
         ::SetLastError(ERROR_OUTOFMEMORY);
-        return NULL;
+        return nullptr;
     }
 
     result->codeBase = code;
     result->ntHeadersOffset = dosHeader->e_lfanew;
     result->isDLL = (ntHeaders->FileHeader.Characteristics & IMAGE_FILE_DLL) != 0;
     result->pageSize = sysInfo.dwPageSize;
-#ifdef _WIN64
-    //result->blockedMemory = blockedMemory;
-#endif
 
     // Commit memory for headers
     headers = (UCHAR*)::VirtualAlloc(code,
@@ -521,8 +517,8 @@ PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size
                 DllEntryProc DllEntry = (DllEntryProc)(LPVOID)(code + result->headers->OptionalHeader.AddressOfEntryPoint);
 
                 // Notify library about attaching to process
-                BOOL successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
-                if (!successfull) {
+                BOOL successful = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
+                if (!successful) {
                     ::SetLastError(ERROR_DLL_INIT_FAILED);
                     throw;
                 }
@@ -533,7 +529,7 @@ PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size
             }
         }
         else {
-            result->exeEntry = NULL;
+            result->exeEntry = nullptr;
         }
         return result;
     }
@@ -542,7 +538,7 @@ PMEMORY_MODULE ReflectiveLibraryLoader::MemoryLoadLibrary(const PVOID Data, size
         // TODO: Handle each exception accordingly
         // Cleanup
         MemoryFreeLibrary(result);
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -552,5 +548,5 @@ VOID ReflectiveLibraryLoader::OverridePeStringIdentifiers(PMEMORY_MODULE Module)
     ::memset(Module->codeBase, 0, 2);
 
 	// Override DOS header
-    ::memset(Module->codeBase + DOS_HEADER_TEXT_OFFSET, 0, Module->ntHeadersOffset - DOS_HEADER_TEXT_OFFSET - sizeof(DWORD) * 2);
+    ::memset(Module->codeBase + DOS_HEADER_OFFSET, 0, Module->ntHeadersOffset - DOS_HEADER_OFFSET - sizeof(DWORD) * 2);
 }

@@ -1,26 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="BookmarkManager">
-    <bookmark url="file://$PROJECT_DIR$/Server.py" line="76" />
+    <bookmark url="file://$PROJECT_DIR$/Server.py" line="79" />
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9b3bf2bb-9fe1-43c5-b184-233f94f7aa19" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/dictionaries/Daniel.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/ReflectiveLibraryLoader.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/ReflectiveLibraryLoader.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZero.sln" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZero.sln" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroClient/RegistryManager.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroClient/RegistryManager.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroClient/ServiceManager.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroClient/ServiceManager.h" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj.filters" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroClient/pch.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroClient/pch.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpRequest.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpRequest.h" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/ReflectiveLibraryLoader.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/ReflectiveLibraryLoader.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/ReflectiveLibraryLoader.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/ReflectiveLibraryLoader.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj.filters" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/dllmain.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/dllmain.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../SubZeroDLL/pch.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/pch.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/LaunchChromeShellcode.asm" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/LaunchChromeShellcode.asm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/LaunchChromeShellcode.exe" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/LaunchChromeShellcode.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/LoadLibraryShellcode.asm" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/LoadLibraryShellcode.asm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/LoadLibraryShellcode.exe" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/LoadLibraryShellcode.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/SubZero.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/SubZero.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/SubZero.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/SubZero.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/SubZeroCommon.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/SubZeroCommon.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server.py" beforeDir="false" afterPath="$PROJECT_DIR$/Server.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../TurlaLoader.exe" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -29,16 +42,12 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="519">
-              <caret line="54" lean-forward="true" selection-start-line="54" selection-end-line="54" />
-              <folding>
-                <element signature="e#0#58#0" expanded="true" />
-                <element signature="e#550#967#0" />
-              </folding>
+            <state relative-caret-position="232">
+              <caret line="59" column="41" selection-start-line="59" selection-start-column="41" selection-end-line="59" selection-end-column="41" />
             </state>
           </provider>
         </entry>
@@ -68,10 +77,10 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
-    <option name="x" value="-1339" />
-    <option name="y" value="42" />
-    <option name="width" value="1936" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="-8" />
+    <option name="y" value="-8" />
+    <option name="width" value="976" />
     <option name="height" value="1056" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
@@ -176,47 +185,34 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1288" y="45" width="1296" height="1000" extended-state="7" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Favorites" side_tool="true" />
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24960254" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.13277134" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Version Control" />
-      <window_info anchor="bottom" id="Python Console" />
-      <window_info anchor="bottom" id="Terminal" />
-      <window_info anchor="bottom" id="Event Log" side_tool="true" />
+      <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.3298731" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.30985916" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.39907727" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
+      <window_info anchor="bottom" id="Terminal" order="8" />
+      <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
+      <window_info anchor="bottom" id="Python Console" order="10" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="493">
-          <caret line="29" column="59" selection-start-line="29" selection-start-column="59" selection-end-line="29" selection-end-column="59" />
-          <folding>
-            <element signature="e#119#177#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/Test.py" />
     <entry file="file://$PROJECT_DIR$/Server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="519">
-          <caret line="54" lean-forward="true" selection-start-line="54" selection-end-line="54" />
-          <folding>
-            <element signature="e#0#58#0" expanded="true" />
-            <element signature="e#550#967#0" />
-          </folding>
+        <state relative-caret-position="232">
+          <caret line="59" column="41" selection-start-line="59" selection-start-column="41" selection-end-line="59" selection-end-column="41" />
         </state>
       </provider>
     </entry>

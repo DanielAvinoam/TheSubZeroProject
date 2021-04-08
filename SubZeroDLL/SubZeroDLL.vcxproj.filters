@@ -27,6 +27,9 @@
     <ClInclude Include="HttpClient.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="httplib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">

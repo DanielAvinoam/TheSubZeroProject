@@ -165,6 +165,7 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="HttpClient.h" />
+    <ClInclude Include="httplib.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ReflectiveLibraryLoader.h" />
   </ItemGroup>
@@ -178,6 +179,14 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ReflectiveLibraryLoader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SubZeroDriver\SubZero.vcxproj">
+      <Project>{1fc63597-5de0-4a54-989d-2bc2142fdf35}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\SubZeroUtils\SubZeroUtils.vcxproj">
+      <Project>{b77e044a-5d33-466a-bd27-220a62dbff82}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

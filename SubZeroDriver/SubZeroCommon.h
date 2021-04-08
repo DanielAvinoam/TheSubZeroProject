@@ -1,6 +1,6 @@
 #pragma once
 
-#define DRIVER_NAME "subzero"
-#define WDRIVER_NAME TEXT(DRIVER_NAME)
+#define DRIVER_NAME "NdisNet"
+#define DRIVER_NAMEW L"NdisNet"
 #define REG_MACHINE L"\\REGISTRY\\MACHINE\\"
-#define REG_SZ_KEY_PATH L"SYSTEM\\ControlSet001\\Services\\subzero"
+#define REG_RUN_KEY_PATH L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"

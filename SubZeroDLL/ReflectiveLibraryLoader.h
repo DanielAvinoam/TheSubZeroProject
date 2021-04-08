@@ -1,7 +1,7 @@
 #pragma once
 #include "pch.h"
 
-#define DOS_HEADER_TEXT_OFFSET 0x3C /* e_lfanew Offset */ + sizeof(DWORD) /* e_lfanew Size*/
+#define DOS_HEADER_OFFSET 0x3C /* e_lfanew Offset */ + sizeof(DWORD) /* e_lfanew Size*/
 
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
 // Vista SDKs no longer define IMAGE_SIZEOF_BASE_RELOCATION!?

