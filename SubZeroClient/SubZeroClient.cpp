@@ -17,8 +17,7 @@ const std::wstring DLL_RESOURCE_NAME(L"NKUI");
 //int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 int wmain(int argc, wchar_t* argv[]) {
 
-	//LoadLibraryA("S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDLL.dll");
-	//LoadLibraryA("C:\\Users\\Daniel\\Desktop\\Drivers\\SubZero\\Release\\SubZeroDLL.dll");
+	//LoadLibraryA("S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDLL.dll");	
 	//return 1;
 	
 	AutoRegistryKeyHandle autoRegKey(nullptr);
