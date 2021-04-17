@@ -1,6 +1,5 @@
 #pragma once
-#include <iostream>
-#include <Windows.h>
+#include "pch.h"
 
 #ifdef _DEBUG 
 #define DEBUG_PRINT(x) do { std::cerr << x << std::endl; } while (0)

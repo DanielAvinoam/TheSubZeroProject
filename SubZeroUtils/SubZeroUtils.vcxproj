@@ -88,8 +88,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -105,8 +106,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -122,8 +124,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -139,8 +142,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -154,10 +158,15 @@
     <ClInclude Include="AutoHandle.h" />
     <ClInclude Include="AutoRegistryKeyHandle.h" />
     <ClInclude Include="AutoServiceHandle.h" />
+    <ClInclude Include="DebugPrint.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PeResource.h" />
+    <ClInclude Include="ProcessEntryIterator.h" />
     <ClInclude Include="RegistryManager.h" />
+    <ClInclude Include="RunningProcesses.h" />
     <ClInclude Include="ServiceManager.h" />
+    <ClInclude Include="StringUtils.h" />
+    <ClInclude Include="VirtualAllocExGuard.h" />
     <ClInclude Include="Win32ErrorCodeException.h" />
   </ItemGroup>
   <ItemGroup>
@@ -171,8 +180,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="PeResource.cpp" />
+    <ClCompile Include="ProcessEntryIterator.cpp" />
     <ClCompile Include="RegistryManager.cpp" />
+    <ClCompile Include="RunningProcesses.cpp" />
     <ClCompile Include="ServiceManager.cpp" />
+    <ClCompile Include="StringUtils.cpp" />
+    <ClCompile Include="VirtualAllocExGuard.cpp" />
     <ClCompile Include="Win32ErrorCodeException.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

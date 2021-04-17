@@ -4,26 +4,26 @@
 HKEY RegistryManager::OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
 	HKEY hkResult = nullptr;	
 	
-	if (::RegOpenKeyExW(hKeyRoot, wsSubKey.c_str(), 0, KEY_ALL_ACCESS, &hkResult) != ERROR_SUCCESS)
+	if (ERROR_SUCCESS != ::RegOpenKeyExW(hKeyRoot, wsSubKey.c_str(), 0, KEY_ALL_ACCESS, &hkResult))
 		throw Win32ErrorCodeException("Could not open registry key");
 	
 	return hkResult;
 }
 
 HKEY RegistryManager::CreateRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
-	HKEY hKey;
-	DWORD dwFunc;
-	LONG  lRes;
+	HKEY hKey = nullptr;
 	PACL pACL = nullptr;
+	DWORD dwFunc = 0;
+	LONG  lRes;
 	SECURITY_ATTRIBUTES SA;
 	SECURITY_DESCRIPTOR SD;
 
 
 	if (!::InitializeSecurityDescriptor(&SD, SECURITY_DESCRIPTOR_REVISION))
-		return nullptr;
+		throw Win32ErrorCodeException("Error initializing security descriptor");
 
 	if (!::SetSecurityDescriptorDacl(&SD, TRUE, pACL, FALSE))
-		return nullptr;
+		throw Win32ErrorCodeException("Error setting security descriptor's DACL");
 
 	SA.nLength = sizeof(SA);
 	SA.lpSecurityDescriptor = &SD;

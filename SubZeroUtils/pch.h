@@ -6,4 +6,8 @@
 #include <atlstr.h>
 #include <memory>
 #include <iostream>
+#include <exception>
+#include <stdexcept>
+#include <iostream>
+#include <iomanip>
 #include <Windows.h>

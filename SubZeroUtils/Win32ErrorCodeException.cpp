@@ -5,7 +5,7 @@ Win32ErrorCodeException::Win32ErrorCodeException(const std::string& errorMessage
 	: std::runtime_error(errorMessage), m_errorCode(0)
 {
 	this->m_errorCode = GetLastError();
-	this->m_winErrorMessage = Win32ErrorCodeException::getLastErrorMessage();
+	this->m_winErrorMessage = getLastErrorMessage();
 
 	std::stringstream messageStream;
 	messageStream << "[-] ";

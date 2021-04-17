@@ -13,16 +13,15 @@ enum class ServerOpcode {
 
 enum class ClientOpcode {
 	Success = 1,
-	SuccessWithReturnedData,
 	Failure
 };
 
 class HttpClient
 {
-	using CallbackFunctionSig = BOOL(ServerOpcode, const PVOID, SIZE_T, std::string*);
+	using CallbackFunctionSig = void(ServerOpcode, const PVOID, SIZE_T, std::string*);
 
 private:
-	std::function<BOOL(ServerOpcode, const PVOID, SIZE_T, std::string*)> CallbackFunction;
+	std::function<void(ServerOpcode, const PVOID, SIZE_T, std::string*)> CallbackFunction;
 	
 	httplib::Client Client;
 

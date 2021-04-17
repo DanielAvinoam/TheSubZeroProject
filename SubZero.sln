@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30523.141
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubZeroClient", "SubZeroClient\SubZeroClient.vcxproj", "{EE1FAA70-0892-485D-A0C5-EADA0A6203D8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubZeroLauncher", "SubZeroLauncher\SubZeroLauncher.vcxproj", "{EE1FAA70-0892-485D-A0C5-EADA0A6203D8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubZeroDLL", "SubZeroDLL\SubZeroDLL.vcxproj", "{88537005-1F0F-4168-9637-72AEE675B602}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubZeroUtils", "SubZeroUtils\SubZeroUtils.vcxproj", "{B77E044A-5D33-466A-BD27-220A62DBFF82}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DSEFix", "DSEFix\DSEFix.vcxproj", "{0BE31C3E-BEC2-466A-96D4-DB232E3F653D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubZeroCleanup", "SubZeroCleanup\SubZeroCleanup.vcxproj", "{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -97,6 +99,18 @@ Global
 		{0BE31C3E-BEC2-466A-96D4-DB232E3F653D}.Release|x64.Build.0 = Release|x64
 		{0BE31C3E-BEC2-466A-96D4-DB232E3F653D}.Release|x86.ActiveCfg = Release|Win32
 		{0BE31C3E-BEC2-466A-96D4-DB232E3F653D}.Release|x86.Build.0 = Release|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|ARM.ActiveCfg = Debug|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|ARM64.ActiveCfg = Debug|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|x64.ActiveCfg = Debug|x64
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|x64.Build.0 = Debug|x64
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|x86.ActiveCfg = Debug|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Debug|x86.Build.0 = Debug|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|ARM.ActiveCfg = Release|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|ARM64.ActiveCfg = Release|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|x64.ActiveCfg = Release|x64
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|x64.Build.0 = Release|x64
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|x86.ActiveCfg = Release|Win32
+		{36DC3AA2-5C79-492D-8990-E57F0FA10FB5}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
