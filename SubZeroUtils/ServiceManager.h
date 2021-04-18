@@ -1,7 +1,7 @@
 #pragma once
-#include "pch.h"
-#include "Win32ErrorCodeException.h"
 #include "AutoServiceHandle.h"
+
+#include <iostream>
 
 class ServiceManager
 {

@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "StringUtils.h"
 
 #include <iomanip>

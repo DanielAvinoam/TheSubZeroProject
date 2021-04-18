@@ -1,5 +1,4 @@
 #pragma once
-
 #include "AutoHandle.h"
 
 #include <TlHelp32.h>

@@ -1,5 +1,9 @@
-#include "pch.h"
 #include "Win32ErrorCodeException.h"
+
+#include <vector>
+#include <sstream>
+
+#include <atlstr.h>
 
 Win32ErrorCodeException::Win32ErrorCodeException(const std::string& errorMessage)
 	: std::runtime_error(errorMessage), m_errorCode(0)

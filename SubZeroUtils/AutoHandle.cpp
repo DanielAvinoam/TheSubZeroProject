@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "AutoHandle.h"
 
 void HandleDeleter::operator()(const HANDLE& handle) const

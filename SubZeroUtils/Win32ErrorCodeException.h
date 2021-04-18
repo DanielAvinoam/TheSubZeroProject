@@ -1,5 +1,9 @@
 #pragma once
-#include "pch.h"
+
+#include <stdexcept>
+#include <iostream>
+
+#include <Windows.h>
 
 class Win32ErrorCodeException : public std::runtime_error
 {

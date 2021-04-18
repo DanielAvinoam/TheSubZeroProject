@@ -1,5 +1,7 @@
-#include "pch.h"
 #include "ServiceManager.h"
+#include "Win32ErrorCodeException.h"
+
+#include <stdexcept>
 
 ServiceManager::ServiceManager(const std::wstring serviceName, const std::wstring filePath, std::uint32_t serviceType)
 	: m_serviceName(serviceName), m_serviceBinPath(filePath), m_serviceType(serviceType), m_service(nullptr),

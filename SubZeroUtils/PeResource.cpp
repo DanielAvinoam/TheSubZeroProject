@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "PeResource.h"
 #include "Win32ErrorCodeException.h"
 #include "AutoHandle.h"

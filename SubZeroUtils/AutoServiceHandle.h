@@ -1,6 +1,5 @@
 #pragma once
-#include "pch.h"
-#include "Win32ErrorCodeException.h"
+#include <Windows.h>
 
 class AutoServiceHandle final
 {

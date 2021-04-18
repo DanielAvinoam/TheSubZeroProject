@@ -21,8 +21,6 @@ AutoRegistryKeyHandle AutoRegKey(nullptr);
 int wmain(int argc, wchar_t* argv[])
 {
 	//LoadLibraryA("S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDLL.dll");
-	//LoadLibraryA("C:\\Users\\Daniel\\Desktop\\Drivers\\SubZero\\Release\\SubZeroDLL.dll");
-	//SubZeroCleanup::Cleanup();
 	//return 1;
 
 	try {						

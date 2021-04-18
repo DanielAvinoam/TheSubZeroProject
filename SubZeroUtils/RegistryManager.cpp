@@ -1,5 +1,5 @@
-#include "pch.h"
 #include "RegistryManager.h"
+#include "Win32ErrorCodeException.h"
 
 HKEY RegistryManager::OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
 	HKEY hkResult = nullptr;	

@@ -1,8 +1,5 @@
 #pragma once
-
 #include "ProcessEntryIterator.h"
-
-#include <Windows.h>
 
 class RunningProcesses
 {

@@ -7,7 +7,7 @@ import urllib
 
 # General constants
 PORT = 8080
-WATCHED_PATH = "C:\\Users\\danie\\Desktop\\New folder (2)\\"
+WATCHED_PATH = "C:\\temp\\SubZeroWatchedFolder\\"
 
 # Queue deceleration and constants
 q = queue.Queue()

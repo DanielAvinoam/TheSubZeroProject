@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "AutoRegistryKeyHandle.h"
 
 AutoRegistryKeyHandle::AutoRegistryKeyHandle(const HKEY& handle)

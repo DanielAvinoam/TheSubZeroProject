@@ -1,5 +1,4 @@
 #pragma once
-#include "pch.h"
 #include "Win32ErrorCodeException.h"
 
 class AutoRegistryKeyHandle final

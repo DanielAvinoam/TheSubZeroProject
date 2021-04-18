@@ -1,6 +1,5 @@
-#include "pch.h"
 #include "VirtualAllocExGuard.h"
-#include "./Win32ErrorCodeException.h"
+#include "Win32ErrorCodeException.h"
 
 VirtualAllocExGuard::VirtualAllocExGuard(const HANDLE& process, SIZE_T allocationSize, DWORD protection,
 	DWORD allocationType, LPVOID address)
