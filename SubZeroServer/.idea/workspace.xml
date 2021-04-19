@@ -5,26 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9b3bf2bb-9fe1-43c5-b184-233f94f7aa19" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../SubZero.sln" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZero.sln" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.rc" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroClient.vcxproj.filters" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/SubZeroLoaderCommon.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/pch.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/pch.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroClient/resource.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/HttpClient.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/SubZeroDLL.vcxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroDLL/dllmain.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDLL/dllmain.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Server.py" beforeDir="false" afterPath="$PROJECT_DIR$/Server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroUtils/RegistryManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroUtils/RegistryManager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroUtils/SubZeroUtils.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroUtils/SubZeroUtils.vcxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroUtils/SubZeroUtils.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroUtils/SubZeroUtils.vcxproj.filters" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroUtils/Win32ErrorCodeException.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroUtils/Win32ErrorCodeException.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../SubZeroUtils/pch.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroUtils/pch.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -37,8 +18,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2091">
-              <caret line="128" lean-forward="true" selection-start-line="128" selection-end-line="128" />
+            <state relative-caret-position="221">
+              <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
             </state>
           </provider>
         </entry>
@@ -177,14 +158,13 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1936" height="1056" extended-state="7" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13277134" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.13277134" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.29035753" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.29035753" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.39907727" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -202,8 +182,8 @@
     <entry file="file://$PROJECT_DIR$/Test.py" />
     <entry file="file://$PROJECT_DIR$/Server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2091">
-          <caret line="128" lean-forward="true" selection-start-line="128" selection-end-line="128" />
+        <state relative-caret-position="221">
+          <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
         </state>
       </provider>
     </entry>
