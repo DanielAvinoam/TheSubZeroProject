@@ -62,7 +62,7 @@ __stdcall PicStart(PVOID StartContext)
 		return;
 
 	// Convert to ULONG and copy to returned data address
-	ULONG pid = (unsigned long)(ULONG_PTR) /* HandleToUlong() Macro */ psGetProcessId(process);			
+	ULONG pid = ::HandleToULong(psGetProcessId(process));
 	rtlCopyMemory(picParameters->ReturnedDataAddress, &pid, sizeof(pid));
 }
 
@@ -117,6 +117,8 @@ DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 
 	// Change per PIC
 	KdPrint((DRIVER_PREFIX "PIC data returned: %d", *returnedDataAddress));
+
+	::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
 	
 	return STATUS_SUCCESS;
 }
