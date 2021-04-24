@@ -82,132 +82,108 @@ PsIsProtectedProcess(
 	_In_ PEPROCESS Process
 );
 
+extern "C"
+PVOID
+RtlImageDirectoryEntryToData(
+	IN PVOID Base,
+	IN BOOLEAN MappedAsImage,
+	IN USHORT DirectoryEntry,
+	OUT PULONG Size
+);
 
-
-
-typedef struct _CONTROL_AREA {
-	PVOID Segment;						// PSEGMENT
-	LIST_ENTRY DereferenceList;
-	ULONG NumberOfSectionReferences;    // All section refs & image flushes
-	ULONG NumberOfPfnReferences;        // valid + transition prototype PTEs
-	ULONG NumberOfMappedViews;          // total # mapped views, including
-										// system cache & system space views
-	ULONG NumberOfSystemCacheViews;     // system cache views only
-	ULONG NumberOfUserReferences;       // user section & view references
-	union {
-		ULONG LongFlags;
-		ULONG Flags;					// MMSECTION_FLAGS
-	} u;
-	PFILE_OBJECT FilePointer;
-	PVOID WaitingForDeletion;			// PEVENT_COUNTER 
-	USHORT ModifiedWriteCount;
-	USHORT FlushInProgressCount;
-	ULONG WritableUserReferences;
-#if !defined (_WIN64)
-	ULONG QuadwordPad;
-#endif
-} CONTROL_AREA, * PCONTROL_AREA;
-
-//0x4 bytes (sizeof)
-typedef struct _MMVAD_FLAGS
+typedef enum _SYSTEM_INFORMATION_CLASS
 {
-	ULONG Lock : 1;                                                           //0x0
-	ULONG LockContended : 1;                                                  //0x0
-	ULONG DeleteInProgress : 1;                                               //0x0
-	ULONG NoChange : 1;                                                       //0x0
-	ULONG VadType : 3;                                                        //0x0
-	ULONG Protection : 5;                                                     //0x0
-	ULONG PreferredNode : 6;                                                  //0x0
-	ULONG PageSize : 2;                                                       //0x0
-	ULONG PrivateMemory : 1;                                                  //0x0
-} MMVAD_FLAGS, * PMMVAD_FLAGS;
+	SystemBasicInformation,
+	SystemProcessorInformation,
+	SystemPerformanceInformation,
+	SystemTimeOfDayInformation,
+	SystemPathInformation,
+	SystemProcessInformation,
+	SystemCallCountInformation,
+	SystemDeviceInformation,
+	SystemProcessorPerformanceInformation,
+	SystemFlagsInformation,
+	SystemCallTimeInformation,
+	SystemModuleInformation,
+	SystemLocksInformation,
+	SystemStackTraceInformation,
+	SystemPagedPoolInformation,
+	SystemNonPagedPoolInformation,
+	SystemHandleInformation,
+	SystemObjectInformation,
+	SystemPageFileInformation,
+	SystemVdmInstemulInformation,
+	SystemVdmBopInformation,
+	SystemFileCacheInformation,
+	SystemPoolTagInformation,
+	SystemInterruptInformation,
+	SystemDpcBehaviorInformation,
+	SystemFullMemoryInformation,
+	SystemLoadGdiDriverInformation,
+	SystemUnloadGdiDriverInformation,
+	SystemTimeAdjustmentInformation,
+	SystemSummaryMemoryInformation,
+	SystemNextEventIdInformation,
+	SystemEventIdsInformation,
+	SystemCrashDumpInformation,
+	SystemExceptionInformation,
+	SystemCrashDumpStateInformation,
+	SystemKernelDebuggerInformation,
+	SystemContextSwitchInformation,
+	SystemRegistryQuotaInformation,
+	SystemExtendServiceTableInformation,
+	SystemPrioritySeperation,
+	SystemPlugPlayBusInformation,
+	SystemDockInformation,
+	SystemPowerInformation_,
+	SystemProcessorSpeedInformation,
+	SystemCurrentTimeZoneInformation,
+	SystemLookasideInformation
+} SYSTEM_INFORMATION_CLASS, * PSYSTEM_INFORMATION_CLASS;
 
-typedef struct _MMVAD_FLAGS2 {
-	unsigned FileOffset : 24;       // number of 64k units into file
-	unsigned SecNoChange : 1;       // set if SEC_NOCHANGE specified
-	unsigned OneSecured : 1;        // set if u3 field is a range
-	unsigned MultipleSecured : 1;   // set if u3 field is a list head
-	unsigned ReadOnly : 1;          // protected as ReadOnly
-	unsigned LongVad : 1;           // set if VAD is a long VAD
-	unsigned ExtendableFile : 1;
-	unsigned Inherit : 1;           //1 = ViewShare, 0 = ViewUnmap
-	unsigned CopyOnWrite : 1;
-} MMVAD_FLAGS2;
+extern "C"
+NTSYSAPI
+NTSTATUS
+NTAPI
+ZwQuerySystemInformation(
+	IN SYSTEM_INFORMATION_CLASS SystemInformationClass,
+	OUT PVOID SystemInformation,
+	IN ULONG SystemInformationLength,
+	OUT PULONG ReturnLength OPTIONAL
+);
 
-typedef struct _MMADDRESS_NODE
+typedef struct _SYSTEM_MODULE_ENTRY
 {
-	ULONG u1;
-	PVOID LeftChild;    // PMMADDRESS_NODE
-	PVOID RightChild;   // PMMADDRESS_NODE
-	ULONG StartingVpn;
-	ULONG EndingVpn;
-} MMADDRESS_NODE, * PMMADDRESS_NODE;
+	HANDLE Section;
+	PVOID MappedBase;
+	PVOID ImageBase;
+	ULONG ImageSize;
+	ULONG Flags;
+	USHORT LoadOrderIndex;
+	USHORT InitOrderIndex;
+	USHORT LoadCount;
+	USHORT OffsetToFileName;
+	UCHAR FullPathName[256];
+} SYSTEM_MODULE_ENTRY, * PSYSTEM_MODULE_ENTRY;
 
-typedef struct _MM_AVL_TABLE
+typedef struct _SYSTEM_MODULE_INFORMATION
 {
-	MMADDRESS_NODE BalancedRoot;
-	ULONG DepthOfTree : 5;
-	ULONG Unused : 3;
-	ULONG NumberGenericTableElements : 24;
-	PVOID NodeHint;
-	PVOID NodeFreeHint;
-} MM_AVL_TABLE, * PMM_AVL_TABLE;
+	ULONG Count;
+	SYSTEM_MODULE_ENTRY Module[1];
+} SYSTEM_MODULE_INFORMATION, * PSYSTEM_MODULE_INFORMATION;
 
-//0x40 bytes (sizeof)
-typedef struct _MMVAD_SHORT
-{
-	union
-	{
-		struct
-		{
-			_MMVAD_SHORT* NextVad;											//0x0
-			VOID* ExtraCreateInfo;                                          //0x8
-		}v;
-		_RTL_BALANCED_NODE VadNode;											//0x0
-	};
-	ULONG StartingVpn;                                                      //0x18
-	ULONG EndingVpn;                                                        //0x1c
-	UCHAR StartingVpnHigh;                                                  //0x20
-	UCHAR EndingVpnHigh;                                                    //0x21
-	UCHAR CommitChargeHigh;                                                 //0x22
-	UCHAR SpareNT64VadUChar;                                                //0x23
-	LONG ReferenceCount;                                                    //0x24
-	PVOID PushLock;															//0x28 - _EX_PUSH_LOCK 
-	union
-	{
-		ULONG LongFlags;                                                    //0x30
-		MMVAD_FLAGS VadFlags;												//0x30
-		ULONG PrivateVadFlags;												//0x30 - _MM_PRIVATE_VAD_FLAGS 
-		ULONG GraphicsVadFlags;												//0x30 - _MM_GRAPHICS_VAD_FLAGS 
-		ULONG SharedVadFlags;												//0x30 - _MM_SHARED_VAD_FLAGS 
-		volatile ULONG VolatileVadLong;                                     //0x30
-	} u;                                                                    //0x30
-	union
-	{
-		ULONG LongFlags1;                                                   //0x34
-		ULONG VadFlags1;				                                    //0x34 - _MMVAD_FLAGS1
-	} u1;                                                                   //0x34
-	struct _MI_VAD_EVENT_BLOCK* EventList;                                  //0x38
-} MMVAD_SHORT, * PMMVAD_SHORT;
+#define IMAGE_DIRECTORY_ENTRY_EXPORT         0     /*Export Directory */
 
-typedef struct _MMVAD
-{
-	MMVAD_SHORT Core;														//0x0
-	union
-	{
-		ULONG LongFlags2;                                                   //0x40
-		volatile _MMVAD_FLAGS2 VadFlags2;									//0x40
-	} u2;                                                                   //0x40
-	PVOID Subsection;														//0x48 - _PSUBSECTION
-	PVOID FirstPrototypePte;												//0x50 - _PMMPTE 
-	PVOID LastContiguousPte;												//0x58 - _PMMPTE 
-	LIST_ENTRY ViewLinks;													//0x60
-	PEPROCESS VadsProcess;													//0x70
-	union
-	{
-		PVOID SequentialVa;													//0x78 - _MI_VAD_SEQUENTIAL_INFO
-		PVOID ExtendedInfo;													//0x78 - _MMEXTEND_INFO
-	} u4;                                                                   //0x78
-	PFILE_OBJECT FileObject;												//0x80
-} MMVAD, * PMMVAD;
-
+typedef struct _IMAGE_EXPORT_DIRECTORY {
+	ULONG   Characteristics;
+	ULONG   TimeDateStamp;
+	USHORT  MajorVersion;
+	USHORT  MinorVersion;
+	ULONG   Name;
+	ULONG   Base;
+	ULONG   NumberOfFunctions;
+	ULONG   NumberOfNames;
+	ULONG   AddressOfFunctions;     // RVA from base of image
+	ULONG   AddressOfNames;         // RVA from base of image
+	ULONG   AddressOfNameOrdinals;  // RVA from base of image
+}  IMAGE_EXPORT_DIRECTORY, * PIMAGE_EXPORT_DIRECTORY;

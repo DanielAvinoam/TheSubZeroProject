@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include <Windows.h>
 
 #define DOS_HEADER_OFFSET 0x3C /* e_lfanew Offset */ + sizeof(DWORD) /* e_lfanew Size*/
 

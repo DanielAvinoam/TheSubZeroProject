@@ -1,6 +1,5 @@
 #pragma once
 #include "pch.h"
-#include "ReflectiveLibraryLoader.h"
 #include "httplib.h"
 
 constexpr DWORD KeepAliveOpcode = 0;
@@ -18,15 +17,15 @@ enum class ClientOpcode {
 
 class HttpClient
 {
-	using CallbackFunctionSig = void(ServerOpcode, const PVOID, SIZE_T, std::string*);
+	using CallbackFunctionSignature = void(const ServerOpcode, const PVOID, const size_t, std::string*, const size_t);
 
 private:
-	std::function<void(ServerOpcode, const PVOID, SIZE_T, std::string*)> CallbackFunction;
+	std::function<void(const ServerOpcode, const PVOID, const size_t, std::string*, const size_t)> CallbackFunction;
 	
 	httplib::Client Client;
 
 public:
-	HttpClient(std::string IpAddress, DWORD Port, std::function<CallbackFunctionSig> Callback = nullptr)
+	HttpClient(std::string IpAddress, DWORD Port, std::function<CallbackFunctionSignature> Callback = nullptr)
 		: CallbackFunction(Callback), Client(IpAddress, Port) { }
 	
 	httplib::Error FetchFromServer();

