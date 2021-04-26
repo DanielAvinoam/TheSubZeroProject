@@ -4,7 +4,14 @@
     <bookmark url="file://$PROJECT_DIR$/Server.py" line="62" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9b3bf2bb-9fe1-43c5-b184-233f94f7aa19" name="Default Changelist" comment="" />
+    <list default="true" id="9b3bf2bb-9fe1-43c5-b184-233f94f7aa19" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/../SubZeroCleanup/SubZeroCleanup.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroCleanup/SubZeroCleanup.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/SubZero.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/SubZero.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroDriver/SubZeroCommon.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroDriver/SubZeroCommon.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroLauncher/SubZeroLauncher.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroLauncher/SubZeroLauncher.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../SubZeroLauncher/SubZeroLauncherCommon.h" beforeDir="false" afterPath="$PROJECT_DIR$/../SubZeroLauncher/SubZeroLauncherCommon.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server.py" beforeDir="false" afterPath="$PROJECT_DIR$/Server.py" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,8 +23,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="783">
-              <caret line="174" selection-start-line="174" selection-end-line="174" />
+            <state relative-caret-position="556">
+              <caret line="159" lean-forward="true" selection-start-line="159" selection-end-line="159" />
               <folding>
                 <element signature="e#0#46#0" expanded="true" />
               </folding>
@@ -28,8 +35,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$USER_HOME$/AppData/Local/Programs/Python/Python39/Lib/http/server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2008">
-              <caret line="433" column="21" lean-forward="true" selection-start-line="433" selection-start-column="21" selection-end-line="433" selection-end-column="21" />
+            <state relative-caret-position="7038">
+              <caret line="433" column="21" selection-start-line="433" selection-start-column="21" selection-end-line="433" selection-end-column="21" />
             </state>
           </provider>
         </entry>
@@ -73,7 +80,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -85,6 +91,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -168,13 +175,14 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.06533193" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.30227518" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.032502707" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.3979239" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -190,20 +198,20 @@
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/Test.py" />
-    <entry file="file://$USER_HOME$/AppData/Local/Programs/Python/Python39/Lib/http/server.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2008">
-          <caret line="433" column="21" lean-forward="true" selection-start-line="433" selection-start-column="21" selection-end-line="433" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="783">
-          <caret line="174" selection-start-line="174" selection-end-line="174" />
+        <state relative-caret-position="556">
+          <caret line="159" lean-forward="true" selection-start-line="159" selection-end-line="159" />
           <folding>
             <element signature="e#0#46#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/AppData/Local/Programs/Python/Python39/Lib/http/server.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="7038">
+          <caret line="433" column="21" selection-start-line="433" selection-start-column="21" selection-end-line="433" selection-end-column="21" />
         </state>
       </provider>
     </entry>

