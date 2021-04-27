@@ -42,7 +42,7 @@ The `NotifyRoutine` will be invoked whenever a new process is created. In this f
 Prior to the APC queueing, the shellcode should be allocated to the process' address spaces. This is possible only from the context of that process and since callback functions are executing by an arbitrary thread, another APC should be queued - this time a kernel one.
 Because we want to execute a chrome process, explorer.exe should be our target process. The following graph demonstrates the flow of events:
 
-PUT IMAGE HERE
+![Driver Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/DriverFlow.JPG "Driver Flow")
 
 There is a crutial problem in this plan though - The malicious DLL execution is dependent on the execution of its host chrome process. We need to create a chrome process of our own and protect it from being killed. Creation of a chrome process can be done using the same afromentioned method ( starting from an explorer.exe thread, since explorer.exe is singular and will already run when our driver will be loaded). 
 For protecting this process the kernel generously offers us another callback registration function named `ObRegisterCallbacks`, which can gives us a notification before an object handle create/open/duplicate operation - All there's left for us to do is to remove the `PROCESS_TERMINATE` access from the user-returned handle.
