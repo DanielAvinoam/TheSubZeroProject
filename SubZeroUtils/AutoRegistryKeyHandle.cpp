@@ -1,4 +1,5 @@
 #include "AutoRegistryKeyHandle.h"
+#include "DebugPrint.h"
 
 AutoRegistryKeyHandle::AutoRegistryKeyHandle(const HKEY& handle)
 	: m_handle(handle)
@@ -38,7 +39,7 @@ void AutoRegistryKeyHandle::registryKeyHandleDeleter() const
 	{
 		if (!::RegCloseKey(this->m_handle))
 		{
-			throw Win32ErrorCodeException("Could not close the registry key handle");
+			throw Win32ErrorCodeException(DEBUG_TEXT("Could not close the registry key handle"));
 		}
 	}
 }

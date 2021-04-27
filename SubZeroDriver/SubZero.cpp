@@ -3,8 +3,7 @@
 
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
-	UNREFERENCED_PARAMETER(DriverObject);
-	
+
 	KdPrint((DRIVER_PREFIX "[+] Driver was loaded\n"));
 
 	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");

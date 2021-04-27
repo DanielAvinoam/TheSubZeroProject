@@ -1,5 +1,6 @@
 #include "VirtualAllocExGuard.h"
 #include "Win32ErrorCodeException.h"
+#include "DebugPrint.h"
 
 VirtualAllocExGuard::VirtualAllocExGuard(const HANDLE& process, SIZE_T allocationSize, DWORD protection,
 	DWORD allocationType, LPVOID address)
@@ -7,18 +8,18 @@ VirtualAllocExGuard::VirtualAllocExGuard(const HANDLE& process, SIZE_T allocatio
 {
 	if (INVALID_HANDLE_VALUE == this->m_process)
 	{
-		throw std::runtime_error("Invalid process handle");
+		throw std::runtime_error(DEBUG_TEXT("Invalid process handle"));
 	}
 
 	if (0 >= this->m_allocationSize)
 	{
-		throw std::runtime_error("Invalid allocation size");
+		throw std::runtime_error(DEBUG_TEXT("Invalid allocation size"));
 	}
 
 	this->m_address = VirtualAllocEx(this->m_process, address, allocationSize, allocationType, protection);
 	if (nullptr == this->m_address)
 	{
-		throw Win32ErrorCodeException("Could not allocate memory in remote process");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not allocate memory in remote process"));
 	}
 }
 
@@ -34,7 +35,7 @@ VirtualAllocExGuard::~VirtualAllocExGuard()
 	}
 	catch (...)
 	{
-		std::cout << "Exception occurred in destructor" << std::endl;
+		DEBUG_PRINT("Exception occurred in destructor");
 	}
 }
 
@@ -55,7 +56,7 @@ void VirtualAllocExGuard::free() const
 	{
 		if (!VirtualFreeEx(this->m_process, this->m_address, this->m_allocationSize, MEM_DECOMMIT))
 		{
-			throw Win32ErrorCodeException("Could not free the memory");
+			throw Win32ErrorCodeException(DEBUG_TEXT("Could not free the memory"));
 		}
 	}
 }

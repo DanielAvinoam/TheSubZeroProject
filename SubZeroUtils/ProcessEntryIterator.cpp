@@ -1,5 +1,6 @@
 #include "ProcessEntryIterator.h"
 #include "Win32ErrorCodeException.h"
+#include "DebugPrint.h"
 
 ProcessEntryIterator::ProcessEntryIterator()
 	: m_processesSnapshot(INVALID_HANDLE_VALUE), m_currentProcess{ 0 }, m_noMoreProcessEntries(false)
@@ -7,7 +8,7 @@ ProcessEntryIterator::ProcessEntryIterator()
 	this->m_processesSnapshot.reset(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
 	if (INVALID_HANDLE_VALUE == this->m_processesSnapshot.get())
 	{
-		throw Win32ErrorCodeException("Could not open handle to snapshot");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not open handle to snapshot"));
 	}
 
 	this->m_currentProcess.dwSize = sizeof(PROCESSENTRY32);

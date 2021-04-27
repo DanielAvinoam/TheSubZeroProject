@@ -27,7 +27,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 1 TEXTINCLUDE 
 BEGIN
-    "resource1.h\0"
+    "resource.h\0"
 END
 
 2 TEXTINCLUDE 
@@ -50,7 +50,7 @@ END
 // PUXY
 //
 
-IDR_PUXY1               PUXY                    "S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDriver.sys"
+IDR_PUXY1               PUXY                    "S:\\Projects\\TheSubZeroProject\\x64\\Release\\SubZeroDriver.sys"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,7 @@ IDR_PUXY1               PUXY                    "S:\\Projects\\SubZeroRootkit\\x
 // NKUI
 //
 
-IDR_NKUI1               NKUI                    "S:\\Projects\\SubZeroRootkit\\x64\\Release\\SubZeroDLL.dll"
+IDR_NKUI1               NKUI                    "S:\\Projects\\TheSubZeroProject\\x64\\Release\\SubZeroDLL.dll"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

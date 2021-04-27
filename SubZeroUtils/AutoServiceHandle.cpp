@@ -1,5 +1,6 @@
 #include "AutoServiceHandle.h"
 #include "Win32ErrorCodeException.h"
+#include "DebugPrint.h"
 
 AutoServiceHandle::AutoServiceHandle(const SC_HANDLE& handle)
 	: m_handle(handle)
@@ -39,7 +40,7 @@ void AutoServiceHandle::serviceHandleDeleter() const
 	{
 		if (!CloseServiceHandle(this->m_handle))
 		{
-			throw Win32ErrorCodeException("Could not close the service handle");
+			throw Win32ErrorCodeException(DEBUG_TEXT("Could not close the registry key handle"));
 		}
 	}
 }

@@ -34,10 +34,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\x64\Release\SubZeroDriver.sys" />
-    <None Include="..\x64\Release\SubZeroDLL.dll" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="SubZeroLauncher.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>

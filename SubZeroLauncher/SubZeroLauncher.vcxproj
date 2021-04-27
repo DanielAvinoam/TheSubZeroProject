@@ -197,10 +197,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\x64\Release\SubZeroDLL.dll" />
-    <None Include="..\x64\Release\SubZeroDriver.sys" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="SubZeroLauncher.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
