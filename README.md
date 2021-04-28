@@ -60,14 +60,14 @@ To fully take advantage of the kernel module, It should provide its user-mode cl
 ## User Mode
 
 The two other user-mode components are the malware's loader and the loaded library itself.
-The loader's designation is pretty straight forward - drop the malicious files to the file system, and load the driver. 
+The loader's designation is pretty straight forward - drop the malicious files to the file system, then load the driver. 
 To bypass windows' driver signature enforcement I used [DSEFix](https://github.com/hfiref0x/DSEFix)'s source code, that utilizes the [WinNT/Turla](https://github.com/hfiref0x/TDL) exploit to disable the system's signature requirement variable.
 
 >**Note**: Starting from windows 8.1 PatchGuard will detect this variable manipulation and cause a BSOD after an almost random amount of time (could be instantaneous or after hours) -  making this loading technique far from ultimate.
 
 In order to load the driver after a system restart, the loader will add itself as a value to the registry RUN key. The driver will then monitor and prevent the deletion of this value by using a similar object notification function to the one mentioned earlier. 
 
-The library will fetch data from a remote server every 5 seconds using HTTP GET requests, and send back any results using HTTP POST requests. Apart from remotely remove the malware from the system without leaving any trace, the attacker would be able to send a kernel shellcode that will be passed directly to the driver and be executed, or send a DLL file that will be loaded reflectively to chrome's address space. 
+The library will fetch data from a remote server every 5 seconds using HTTP GET requests, and send back any results using HTTP POST requests. Apart from remotely removing the malware from the system without leaving any trace, the attacker would be able to send a kernel shellcode that will be passed directly to the driver and be executed, or send a DLL file that will be loaded reflectively to chrome's address space. 
 
 The following diagram summarizes the complete attack flow:
 
