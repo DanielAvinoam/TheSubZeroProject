@@ -44,7 +44,7 @@ The following graph demonstrates the flow of events:
 
 ![Driver Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/DriverFlow.JPG "Driver Flow")
 
-There is a crutial problem in this plan though - The malicious DLL execution is dependent on the execution of its host chrome process. We need to create a chrome process of our own and protect it from being killed. Creation of a chrome process can be done using the same afromentioned method ( starting from an explorer.exe thread, since explorer.exe is singular and will already run when our driver will be loaded). 
+There is a crutial problem in this plan though - The malicious DLL execution is dependent on the execution of its host chrome process. We need to create a chrome process of our own and protect it from being killed and to make it look legitemate - explorer.exe's PID should be our target PID. The craetion of the chrome process can be done using the same afromentioned method ( starting from an explorer.exe thread, since explorer.exe is singular and will already run when our driver will be loaded). 
 For protecting this process the kernel generously offers us another callback registration function named `ObRegisterCallbacks`, which can give us a notification before an object handle create/open/duplicate operation - All there's left for us to do is to remove the `PROCESS_TERMINATE` access from the user-returned handle.
 This solution is not perfect though, According to [@zodiacon](https://github.com/zodiacon)'s Windows Kernel Programming book:
 
