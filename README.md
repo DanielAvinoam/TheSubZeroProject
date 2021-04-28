@@ -13,7 +13,7 @@ In addition, this repository also contain a use of Microsoft's undocumented func
 # Introduction & Goal  
   
 As a security researcher, I have encountered and analyzed various user-mode malwares in recent times. While some of them were more challenging than others, they were all designed with the same common ground in mind - **User Mode**.  
-My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver]([https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering)) from 2008 - A pretty good start, but still far from a modern day kernel mode threat.  
+My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering) from 2008 - A pretty good start, but still far from a modern day kernel mode threat.  
 Instead of searching for a modern malicious driver to disassemble, which are extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write the driver myself (After all, you should always "know your enemy")  
 This driver will accompany a few other user-mode modules that together will create a complete attack vector from start to finish. The researchers will receive a memory image of a compromised system and will need to form an accurate status report of what happened as fast as possible.  
  
