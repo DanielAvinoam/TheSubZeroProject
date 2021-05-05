@@ -8,7 +8,7 @@
 DWORD
 __declspec(safebuffers)
 __declspec(noinline)
-WINAPI PicStart(struct PicParameters* picParameters)
+WINAPI PicStart(struct PisParameters* picParameters)
 {
 	pLoadLibraryA loadLibraryA = (pLoadLibraryA)(picParameters->loadLibraryA);
 	pGetProcAddress getProcAddress = (pGetProcAddress)picParameters->getProcAddress;

@@ -2,7 +2,7 @@
 
 #include <Windows.h>
 
-struct PicParameters
+struct PisParameters
 {
 	LPVOID loadLibraryA;
 	LPVOID getProcAddress;
@@ -22,7 +22,7 @@ typedef BOOL(WINAPI* pDeleteFileA)(_In_ LPCSTR lpFileName);
 extern "C" {
 #endif
 
-	DWORD WINAPI PisStart(struct PicParameters* pisParameters);
+	DWORD WINAPI PisStart(struct PisParameters* pisParameters);
 
 	void PisEnd();
 

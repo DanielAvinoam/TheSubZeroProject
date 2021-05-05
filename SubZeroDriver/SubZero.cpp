@@ -191,7 +191,7 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		PicParameters picParameters
+		PisParameters picParameters
 		{
 			MmGetSystemRoutineAddress,
 			returnedDataAddress,

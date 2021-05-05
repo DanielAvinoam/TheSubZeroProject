@@ -1,10 +1,10 @@
 #include <ntifs.h>
 #include <minwindef.h>
 
-#define DRIVER_PREFIX "KernelPICCreator: "
+#define DRIVER_PREFIX "KernelPISCreator: "
 #define DRIVER_TAG 'kpic'
 
-struct PicParameters
+struct PisParameters
 {
 	LPVOID MmGetSystemRoutineAddress;
 	LPVOID ReturnedDataAddress;
@@ -30,10 +30,10 @@ __stdcall PicStart(PVOID StartContext)
 	if (nullptr == StartContext)
 		return;
 	
-	PicParameters* picParameters = (PicParameters*)StartContext;
+	PisParameters* pisParameters = (PisParameters*)StartContext;
 
 	// Get MmGetSystemRoutineAddress
-	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)picParameters->MmGetSystemRoutineAddress;
+	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)pisParameters->MmGetSystemRoutineAddress;
 	if (nullptr == mmGetSystemRoutineAddress)
 		return;
 
@@ -63,13 +63,13 @@ __stdcall PicStart(PVOID StartContext)
 
 	// Convert to ULONG and copy to returned data address
 	ULONG pid = ::HandleToULong(psGetProcessId(process));
-	rtlCopyMemory(picParameters->ReturnedDataAddress, &pid, sizeof(pid));
+	rtlCopyMemory(pisParameters->ReturnedDataAddress, &pid, sizeof(pid));
 }
 
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 {
-	// Change per PIC
+	// Change per PIS
 	USHORT returnedDataMaxSize = sizeof(ULONG);
 	
 	ULONG* returnedDataAddress = (ULONG*)::ExAllocatePoolWithTag(NonPagedPool, returnedDataMaxSize, DRIVER_TAG);
@@ -78,10 +78,10 @@ DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 	
-	PicParameters picParams;
-	picParams.MmGetSystemRoutineAddress = MmGetSystemRoutineAddress;
-	picParams.ReturnedDataAddress = returnedDataAddress;
-	picParams.ReturnedDataMaxSize = returnedDataMaxSize;
+	PisParameters pisParameters;
+	pisParameters.MmGetSystemRoutineAddress = MmGetSystemRoutineAddress;
+	pisParameters.ReturnedDataAddress = returnedDataAddress;
+	pisParameters.ReturnedDataMaxSize = returnedDataMaxSize;
 	
 	HANDLE threadHandle;
 	NTSTATUS status = ::PsCreateSystemThread(
@@ -91,7 +91,7 @@ DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 		nullptr,
 		nullptr,
 		PicStart,
-		&picParams);
+		&pisParameters);
 	if (!NT_SUCCESS(status))
 		return status;
 
@@ -115,8 +115,8 @@ DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 	if (!NT_SUCCESS(status))
 		return status;
 
-	// Change per PIC
-	KdPrint((DRIVER_PREFIX "PIC data returned: %d", *returnedDataAddress));
+	// Change per PIS
+	KdPrint((DRIVER_PREFIX "PIS data returned: %d", *returnedDataAddress));
 
 	::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
 	

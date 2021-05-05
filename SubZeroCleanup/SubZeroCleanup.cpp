@@ -118,7 +118,7 @@ void SubZeroCleanup::Cleanup()
     }
 
     // Setup PIS parameters
-    PicParameters picParams =
+    PisParameters picParams =
     {
         LoadLibraryA,
     	GetProcAddress,
@@ -133,7 +133,7 @@ void SubZeroCleanup::Cleanup()
         // Inject PIS
         try
         {
-            PISInjection::InjectPic<PicParameters>(picTargetPID, &picParams, PisStart, PisEnd);
+            PISInjection::InjectPic<PisParameters>(picTargetPID, &picParams, PisStart, PisEnd);
         }
         catch (std::exception& exception)
         {

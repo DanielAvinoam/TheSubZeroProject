@@ -11,8 +11,8 @@ class PicInjection
 	static void writeToTargetProcess(HANDLE targetProcess, LPVOID remoteAddress, LPVOID data, SIZE_T dataSize);
 public:
 	
-	template <typename PicParameters>
-	static void InjectPic(const std::uint32_t targetPid, PicParameters* picParams, const PVOID picStart, const PVOID picEnd)
+	template <typename PisParameters>
+	static void InjectPic(const std::uint32_t targetPid, PisParameters* picParams, const PVOID picStart, const PVOID picEnd)
 	{
 
 		const int picBytesSize = reinterpret_cast<LPBYTE>(picEnd) - reinterpret_cast<LPBYTE>(picStart);
@@ -30,11 +30,11 @@ public:
 		DEBUG_PRINT("[+] Open handle to target process");
 
 
-		VirtualAllocExGuard remoteParamsMemoryGuard(targetProcess.get(), sizeof(PicParameters), PAGE_EXECUTE_READWRITE);
+		VirtualAllocExGuard remoteParamsMemoryGuard(targetProcess.get(), sizeof(PisParameters), PAGE_EXECUTE_READWRITE);
 		DEBUG_PRINT("[+] Allocate memory for PIC parameters in target process");
 
 
-		writeToTargetProcess(targetProcess.get(), remoteParamsMemoryGuard.get(), picParams, sizeof(PicParameters));
+		writeToTargetProcess(targetProcess.get(), remoteParamsMemoryGuard.get(), picParams, sizeof(PisParameters));
 		DEBUG_PRINT("[+] Write PIC parameters to target process at address: " + StringUtils::hexValue(reinterpret_cast<std::uint64_t>(remoteParamsMemoryGuard.get())));
 
 
