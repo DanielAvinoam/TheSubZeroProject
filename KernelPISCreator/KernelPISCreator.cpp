@@ -4,7 +4,7 @@
 #define DRIVER_PREFIX "KernelPISCreator: "
 #define DRIVER_TAG 'kpic'
 
-struct PisParameters
+struct KernelPisParameters
 {
 	LPVOID MmGetSystemRoutineAddress;
 	LPVOID ReturnedDataAddress;
@@ -30,7 +30,7 @@ __stdcall PicStart(PVOID StartContext)
 	if (nullptr == StartContext)
 		return;
 	
-	PisParameters* pisParameters = (PisParameters*)StartContext;
+	KernelPisParameters* pisParameters = (KernelPisParameters*)StartContext;
 
 	// Get MmGetSystemRoutineAddress
 	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)pisParameters->MmGetSystemRoutineAddress;
@@ -78,7 +78,7 @@ DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 	
-	PisParameters pisParameters;
+	KernelPisParameters pisParameters;
 	pisParameters.MmGetSystemRoutineAddress = MmGetSystemRoutineAddress;
 	pisParameters.ReturnedDataAddress = returnedDataAddress;
 	pisParameters.ReturnedDataMaxSize = returnedDataMaxSize;

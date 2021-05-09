@@ -8,7 +8,7 @@
 DWORD
 __declspec(safebuffers)
 __declspec(noinline)
-WINAPI PisStart(struct PisParameters* pisParameters)
+WINAPI PisStart(struct UserPisParameters* pisParameters)
 {
 	pLoadLibraryA loadLibraryA = (pLoadLibraryA)(pisParameters->loadLibraryA);
 	pGetProcAddress getProcAddress = (pGetProcAddress)pisParameters->getProcAddress;

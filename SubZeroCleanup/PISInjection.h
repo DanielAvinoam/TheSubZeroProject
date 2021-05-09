@@ -11,8 +11,8 @@ class PISInjection
 	static void writeToTargetProcess(HANDLE targetProcess, LPVOID remoteAddress, LPVOID data, SIZE_T dataSize);
 public:
 	
-	template <typename PisParameters>
-	static void InjectPis(const std::uint32_t targetPid, PisParameters* pisParameters, const PVOID pisStart, const PVOID pisEnd)
+	template <typename UserPisParameters>
+	static void InjectPis(const std::uint32_t targetPid, UserPisParameters* pisParameters, const PVOID pisStart, const PVOID pisEnd)
 	{
 
 		const int pisBytesSize = reinterpret_cast<LPBYTE>(pisEnd) - reinterpret_cast<LPBYTE>(pisStart);
@@ -25,10 +25,10 @@ public:
 
 		DEBUG_PRINT("[+] Open handle to target process");
 
-		VirtualAllocExGuard remoteParamsMemoryGuard(targetProcess.get(), sizeof(PisParameters), PAGE_EXECUTE_READWRITE);
+		VirtualAllocExGuard remoteParamsMemoryGuard(targetProcess.get(), sizeof(UserPisParameters), PAGE_EXECUTE_READWRITE);
 		DEBUG_PRINT("[+] Allocate memory for PIS parameters in target process");
 
-		writeToTargetProcess(targetProcess.get(), remoteParamsMemoryGuard.get(), pisParameters, sizeof(PisParameters));
+		writeToTargetProcess(targetProcess.get(), remoteParamsMemoryGuard.get(), pisParameters, sizeof(UserPisParameters));
 		DEBUG_PRINT("[+] Write PIS parameters to target process at address: " + StringUtils::hexValue(reinterpret_cast<std::uint64_t>(remoteParamsMemoryGuard.get())));
 
 		VirtualAllocExGuard remotePisMemoryGuard(targetProcess.get(), pisBytesSize, PAGE_EXECUTE_READWRITE);

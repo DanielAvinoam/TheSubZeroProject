@@ -2,7 +2,7 @@
 #include "pch.h"
 #include "httplib.h"
 
-constexpr DWORD KeepAliveOpcode = 0;
+constexpr uint8_t KeepAliveOpcode = 0;
 
 enum class ServerOpcode {
 	InjectKernelShellcode = 1,

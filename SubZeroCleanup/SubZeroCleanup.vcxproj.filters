@@ -18,13 +18,13 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PIC.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PicInjection.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SubZeroCleanup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PIS.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PISInjection.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -32,13 +32,13 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PIC.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PicInjection.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SubZeroCleanup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PIS.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PISInjection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

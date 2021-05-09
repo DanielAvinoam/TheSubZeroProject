@@ -196,27 +196,27 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			return STATUS_BUFFER_TOO_SMALL;
 				
 		auto* const returnedDataAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ReturnedDataMaxSize, DRIVER_TAG);
-		if (nullptr == returnedDataAddress) {
+		if (nullptr == returnedDataAddress) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Error allocating returned data space\n"));
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		PisParameters picParameters
-		{
-			MmGetSystemRoutineAddress,
-			returnedDataAddress,
-			buffer->ReturnedDataMaxSize
-		};
+		KernelPisParameters pisParameters;
+		pisParameters.MmGetSystemRoutineAddress = MmGetSystemRoutineAddress;
+		pisParameters.ReturnedDataAddress = returnedDataAddress;
+		pisParameters.ReturnedDataMaxSize = buffer->ReturnedDataMaxSize;
 		
-		auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
-		if (nullptr == picAddress) {
+		auto* const pisAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
+		if (nullptr == pisAddress) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Error allocating PIS space\n"));
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 		
-		::RtlCopyMemory(picAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
+		::RtlCopyMemory(pisAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
 
-		auto const pic = static_cast<PicFunction>(picAddress);
+		auto const pic = static_cast<KernelPisFunction>(pisAddress);
 
 		HANDLE threadHandle;
 		auto status = ::PsCreateSystemThread(
@@ -226,7 +226,7 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			nullptr, 
 			nullptr,
 			pic, 
-			&picParameters);
+			&pisParameters);
 		if (!NT_SUCCESS(status))
 			return status;
 
@@ -251,14 +251,14 @@ NTSTATUS ExecuteShellcode_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 			return status;
 
 		// Copy returned data to user buffer
-		::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, picParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
+		::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, pisParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
 
 		// Set returned data buffer size
-		Irp->IoStatus.Information = picParameters.ReturnedDataMaxSize;
+		Irp->IoStatus.Information = pisParameters.ReturnedDataMaxSize;
 
 		// Free PIS memory
 		::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
-		::ExFreePoolWithTag(picAddress, DRIVER_TAG);
+		::ExFreePoolWithTag(pisAddress, DRIVER_TAG);
 
 		return STATUS_SUCCESS;
 	}

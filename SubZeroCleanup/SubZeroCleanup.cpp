@@ -120,7 +120,7 @@ void SubZeroCleanup::Cleanup()
     }
 
     // Setup PIS parameters
-    PisParameters pisParameters;
+    UserPisParameters pisParameters;
     pisParameters.loadLibraryA = LoadLibraryA;
     pisParameters.getProcAddress = GetProcAddress;
     pisParameters.pid = static_cast<int>(::GetCurrentProcessId());
@@ -133,7 +133,7 @@ void SubZeroCleanup::Cleanup()
         // Inject PIS
         try
         {
-            PISInjection::InjectPis<PisParameters>(pisTargetPID, &pisParameters, PisStart, PisEnd);
+            PISInjection::InjectPis<UserPisParameters>(pisTargetPID, &pisParameters, PisStart, PisEnd);
         }
         catch (std::exception& exception)
         {
