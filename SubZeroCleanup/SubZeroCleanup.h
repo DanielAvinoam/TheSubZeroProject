@@ -3,7 +3,7 @@
 
 class SubZeroCleanup
 {
-	static std::uint32_t GetProcessPidByProcessName(const std::wstring& processName);
+	static std::uint16_t GetProcessPidByProcessName(const std::wstring& processName);
 	static bool IsLocalSystem();
 
 public:

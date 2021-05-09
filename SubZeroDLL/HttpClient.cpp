@@ -27,10 +27,12 @@ httplib::Error HttpClient::FetchFromServer() {
                             this->CallbackFunction(static_cast<ServerOpcode>(ServerOC), (PVOID)response->body.c_str(), response->body.length(), &returnedData, returnDataMaxSize);
                             resultOpcode = static_cast<char>(ClientOpcode::Success);
 	                    }
-                        catch (const std::exception& exception) {
+                        catch (const std::exception& exception) 
+                        {
                             returnedData = exception.what();                            
                         }
-	                    catch (...) {
+	                    catch (...) 
+                        {
                             returnedData = "[-] Unknown exception occurred";                            
 	                    }                        
                     }
