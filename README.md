@@ -896,7 +896,7 @@ def do_POST(self):
 
 * Sending command from the server console and receiving results:
 
-![Server Execution](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/ServerExecution.JPG "Server Execution")
+![Server Execution](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/ServerExecution.png "Server Execution")
 
 # TODO List
 - [ ] Use more `C++` features in the driver project
