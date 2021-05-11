@@ -118,7 +118,7 @@ if (pid == g_Globals.ExplorerPID)
     if (g_Globals.ExplorerLauncherThreadID != 0)
         return;
 
-    KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread caught. TID: %d\n", tid));
+    KdPrint((DRIVER_PREFIX "[+] explorer launcher thread caught. TID: %d\n", tid));
     g_Globals.ExplorerLauncherThreadID = tid;
 
     // Register for Process notifications in order to catch the ghost chrome launch
