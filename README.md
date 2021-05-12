@@ -71,7 +71,7 @@ The library will fetch data from a remote server every 5 seconds using HTTP GET 
 
 The following diagram summarizes the complete attack flow:
 
-![Complete Attack Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/CompleteAttackFlow.jpg "Complete Attack Flow")
+![Complete Attack Flow](https://github.com/DanielAvinoam/TheSubZeroProject/blob/main/Images/CompleteAttackFlow.png "Complete Attack Flow")
 
 **With this framework installed on a system an attacker can basically achieve anything.** 
 

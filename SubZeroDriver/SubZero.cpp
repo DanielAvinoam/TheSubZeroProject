@@ -394,7 +394,7 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 		if (g_Globals.ExplorerLauncherThreadID != 0) 
 			return;
 
-		KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread catched. TID: %d\n", tid));
+		KdPrint((DRIVER_PREFIX "[+] explorer launcher Thread caught. TID: %d\n", tid));
 		g_Globals.ExplorerLauncherThreadID = tid;
 
 		// Register for Process notifications in order to catch the ghost chrome launch
@@ -421,7 +421,7 @@ void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 		if (g_Globals.ChromeFirstThreadID != 0) 
 			return;
 
-		KdPrint((DRIVER_PREFIX "[+] Chrome first Thread catched. TID: %d\n", tid));
+		KdPrint((DRIVER_PREFIX "[+] Chrome first Thread caught. TID: %d\n", tid));
 		g_Globals.ChromeFirstThreadID = tid;
 
 		// Queue APC for dll loading
@@ -461,7 +461,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 		// Search for our ghost chrome 
 		if (::HandleToULong(CreateInfo->ParentProcessId) == g_Globals.ExplorerPID) 
 		{
-			KdPrint((DRIVER_PREFIX "[+] Chrome.exe catched. PID: %d\n", pid));
+			KdPrint((DRIVER_PREFIX "[+] Chrome.exe caught. PID: %d\n", pid));
 			g_Globals.ChromePID = pid;
 		}
 	}
