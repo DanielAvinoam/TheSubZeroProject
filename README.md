@@ -8,13 +8,13 @@ SubZero is a multi-staged malware that contains a kernel-mode rootkit and a remo
   
 I take **NO** responsibility and/or liability for how you choose to use any of the source code available here. By using any of the files, you acknowledge that **you are using at your own risk**.  
   
-In addition, this repository also contain a use of Microsoft's undocumented functions and structures. Using those is extremely dangerous and not recommended. **I do not promote this kind of code in any way**.  
+In addition, this repository also contains a usage of Microsoft's undocumented functions and structures. Using those is extremely dangerous and not recommended. **I do not promote this kind of code in any way**.  
   
 # Introduction & Goal  
   
 As a security researcher, I have encountered and analyzed various user-mode malwares in recent times. While some of them were more challenging than others, they were all designed with the same common ground in mind - **User-Mode**.  
 My colleagues and I wanted to put our forensics skills to the test in an unknown environment like the kernel space. We started by fully [reverse-engineering an APT driver](https://github.com/DanielAvinoam/BlackEnergyV2-Driver-Reverse-Engineering) from 2008 - A pretty good start, but still far from a modern day kernel-mode threat.  
-Instead of searching for a modern malicious drivers to disassemble, which are extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write the driver myself (After all, you should always "know your enemy")  
+Instead of searching modern malicious drivers to disassemble, which are extremely rare anyway, I figured it would be more beneficial to challenge my kernel programming skills and write a driver myself (After all, you should always "know your enemy")  
 This driver will accompany a few other user-mode modules that together will create a complete attack vector from start to finish. The researchers will receive a [memory image](https://drive.google.com/file/d/199RgloKz4Ki6HklD5pczlNBGX-YRFd7W/view?usp=sharing) of a compromised system and will need to form an accurate status report of what happened as fast as possible.  
  
 This project's main component is its driver - meaning the rest of the user-mode modules might have some compromises and will not take every scenario into account.  
