@@ -91,7 +91,7 @@ The following diagram summarizes the complete attack flow:
 
 ## Driver 
 
-Starting from the `DriverEntry` function, the driver initializes some usual structures like a `DeviceObject` and a symbolic link, then it register its callback and dispatch functions. This is followed by seeking explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverses the system's `EPROCESS` list and compares each entry's name to the requested one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
+Starting from the `DriverEntry` function, the driver initializes some usual structures like a `DeviceObject` and a symbolic link, then it registers its callback and dispatch functions. This is followed by seeking explorer's PID, which should be present in the system's process list (`FindProcessByName` simply traverses the system's `EPROCESS` list and compares each entry's name to the requested one). In case it doesn't, the thread sleeps for 5 seconds and tries again:
 ```cpp
     // Search for explorer Process
     PEPROCESS explorerProcess;
