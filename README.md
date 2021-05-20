@@ -603,7 +603,7 @@ This class is based on [Joachim Bauch's in-memory DLL loader](https://www.joachi
  5. Execute TLS callbacks if exists.
  6. Call the library's `DllMain`.
  
-Initially, I intended to use the driver to change the DLL main allocation's `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to make it look legitimate as possible. After observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues use), it appeares it's memory regions don't come up on `malfind`'s results - the tool's main plugin for detecting suspicious memory allocations.
+Initially, I intended to use the driver to change the DLL main allocation's `VAD` protection to `EXECUTE_WRITECOPY` and link it a `FILE_OBJECT` in order to make it look legitimate as possible. After observing a reflectively loaded library from a memory image using [Volatility Framework](https://github.com/volatilityfoundation/volatility), which is today the main tool for memory forensics (and the one my colleagues use), it appeared it's memory regions don't come up on `malfind`'s results - the tool's main plugin for detecting suspicious memory allocations.
 This made my life much easier, since (as expected) the `VAD` structure is undocumented and manipulating it will cause a big problem source. The only thing I did was to delete the PE's header string identifiers - the "MZ" at the first 2 bytes and the DOS header error label ("This Program cannot be run in DOS mode...")
 
 The third opcode is for cleanup and will be overviewed later. 
